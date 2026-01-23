@@ -52,8 +52,8 @@ assistant.exe -i
 # JSON output for programmatic use
 assistant.exe --json "analyze this file"
 
-# Force markdown rendering
-assistant.exe --markdown "create a table"
+# Force markdown rendering (only works with --no-stream)
+assistant.exe --markdown --no-stream "create a table"
 
 # Disable markdown
 assistant.exe --no-markdown "simple output"
@@ -66,6 +66,8 @@ assistant.exe --no-stream "wait for full response"
 assistant.exe --spinner "long task"
 assistant.exe --no-spinner "quick task"
 ```
+
+> **Note:** When `--stream` is enabled (default), `--markdown` has no effect since content is printed in real-time as it arrives. Use `--no-stream --markdown` to enable markdown rendering.
 
 ### Configuration
 ```bash

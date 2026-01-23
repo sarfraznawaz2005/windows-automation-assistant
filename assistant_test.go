@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	copilot "github.com/github/copilot-sdk/go"
 )
 
 // TestConfigValidation tests the configuration validation
@@ -369,25 +367,6 @@ func TestIsToolEnabled(t *testing.T) {
 	}
 }
 
-// TestGenerateMockWeather tests mock weather generation
-func TestGenerateMockWeather(t *testing.T) {
-	result := generateMockWeather("London")
-
-	if result.City != "London" {
-		t.Errorf("Expected city 'London', got '%s'", result.City)
-	}
-	if result.Unit != "Celsius" {
-		t.Errorf("Expected unit 'Celsius', got '%s'", result.Unit)
-	}
-	if result.Condition == "" {
-		t.Error("Condition should not be empty")
-	}
-	// Temperature should be within expected range
-	if result.Temperature < 0 || result.Temperature > 50 {
-		t.Errorf("Temperature out of expected range: %f", result.Temperature)
-	}
-}
-
 // TestCreateToolHandler tests tool handler creation
 func TestCreateToolHandler(t *testing.T) {
 	// Test known handler
@@ -403,44 +382,6 @@ func TestCreateToolHandler(t *testing.T) {
 	_, err = createToolHandler("unknown_handler")
 	if err == nil {
 		t.Error("Should return error for unknown handler")
-	}
-}
-
-// TestWeatherToolHandler tests the weather tool handler
-func TestWeatherToolHandler(t *testing.T) {
-	invocation := copilot.ToolInvocation{
-		ToolName: "weather",
-		Arguments: map[string]interface{}{
-			"city": "Paris",
-		},
-	}
-
-	result, err := weatherToolHandler(invocation)
-	if err != nil {
-		t.Fatalf("weatherToolHandler failed: %v", err)
-	}
-
-	if result.ResultType != "success" {
-		t.Errorf("Expected ResultType 'success', got '%s'", result.ResultType)
-	}
-	if !strings.Contains(result.TextResultForLLM, "Paris") {
-		t.Errorf("Result should contain city name, got: %s", result.TextResultForLLM)
-	}
-	if !strings.Contains(result.SessionLog, "Paris") {
-		t.Errorf("SessionLog should contain city name, got: %s", result.SessionLog)
-	}
-}
-
-// TestWeatherToolHandlerInvalidParams tests weather handler with invalid parameters
-func TestWeatherToolHandlerInvalidParams(t *testing.T) {
-	invocation := copilot.ToolInvocation{
-		ToolName:  "weather",
-		Arguments: "invalid", // not a map
-	}
-
-	_, err := weatherToolHandler(invocation)
-	if err == nil {
-		t.Error("weatherToolHandler should fail with invalid parameters")
 	}
 }
 

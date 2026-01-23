@@ -153,10 +153,16 @@ func runInteractiveMode(config *Config) {
 			if toolProgressStop != nil {
 				toolProgressStop()
 			}
-			// Start new progress indicator for tool execution
-			if event.Data.ToolRequests != nil && len(event.Data.ToolRequests) > 0 {
-				toolName := event.Data.ToolRequests[0].Name
-				fmt.Printf("Executing %s...\n", toolName)
+			// Start new progress indicator for tool execution - check both ToolName and ToolRequests
+			var toolName string
+			if event.Data.ToolName != nil {
+				toolName = *event.Data.ToolName
+			} else if event.Data.ToolRequests != nil && len(event.Data.ToolRequests) > 0 {
+				toolName = event.Data.ToolRequests[0].Name
+			}
+			// Skip internal tools like report_intent
+			if toolName != "" && toolName != "report_intent" {
+				fmt.Printf("Executing Tool: %s...\n", toolName)
 				toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 			}
 		case "tool.execution_complete":
@@ -164,7 +170,6 @@ func runInteractiveMode(config *Config) {
 			if toolProgressStop != nil {
 				toolProgressStop()
 				toolProgressStop = nil
-				fmt.Println("Tool execution completed")
 			}
 		case "session.idle":
 			// Ensure any remaining progress indicator is stopped
