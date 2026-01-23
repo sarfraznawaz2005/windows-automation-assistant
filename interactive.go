@@ -146,10 +146,11 @@ func runInteractiveMode(config *Config) {
 				}
 			}
 		case "assistant.message":
-			// Stop thinking indicator before showing final output
-			stopThinking()
+			// Only stop thinking if we're about to show output
+			// Don't stop if we haven't streamed content yet and will continue with tools
 			if !config.Output.Streaming && fullContent.Len() > 0 {
 				// Non-streaming mode: render collected content
+				stopThinking()
 				content := fullContent.String()
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
@@ -157,15 +158,18 @@ func runInteractiveMode(config *Config) {
 				fmt.Println(content)
 			} else if streamedContent {
 				// Streaming mode completed - just add newline
+				stopThinking()
 				fmt.Println()
-			} else if event.Data.Content != nil {
-				// Non-streaming response (no deltas received)
+			} else if event.Data.Content != nil && *event.Data.Content != "" {
+				// Non-streaming response with actual content
+				stopThinking()
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
 			}
+			// If none of the above, keep thinking indicator running
 		case "tool.execution_start":
 			// Start new progress indicator for tool execution - check both ToolName and ToolRequests
 			var toolName string
