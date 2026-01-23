@@ -5,7 +5,7 @@ REM Windows Automation Assistant Build Script
 echo Building Windows Automation Assistant...
 
 REM Build the assistant as .exe
-go build -o assistant.exe .
+go build -ldflags="-s -w" -o assistant.exe .
 
 if %ERRORLEVEL% EQU 0 (
     echo Build successful!

@@ -14,13 +14,13 @@ After making ANY code changes (editing, adding, or deleting code), execute:
 
 ```bash
 # ALWAYS run this after making changes
-go build -o assistant.exe *.go && go test -v
+go build -ldflags="-s -w" -o assistant.exe *.go && go test -v
 ```
 
 ### Verification Checklist
 
 Before considering a task complete, verify:
-1. **Build succeeds**: `go build -o assistant.exe *.go` exits with code 0
+1. **Build succeeds**: `go build -ldflags="-s -w" -o assistant.exe *.go` exits with code 0
 2. **All tests pass**: `go test -v` shows all tests PASS
 3. **No regressions**: Existing functionality still works
 
@@ -35,16 +35,30 @@ Before considering a task complete, verify:
 
 ```bash
 # Build only
-go build -o assistant.exe *.go
+go build -ldflags="-s -w" -o assistant.exe *.go
 
 # Test only
 go test -v
 
 # Build AND test (preferred - use this!)
-go build -o assistant.exe *.go && go test -v
+go build -ldflags="-s -w" -o assistant.exe *.go && go test -v
 
 # Test with coverage
 go test -v -cover
+```
+
+### Build Flags
+
+The project uses `-ldflags="-s -w"` for production builds:
+- `-s` - Strips symbol table
+- `-w` - Strips DWARF debug information
+
+**Benefits:** Smaller binary (~30% smaller, ~6.9 MB vs ~9.8 MB), faster startup
+**Trade-offs:** No line numbers in panic stack traces, debugger/profiler support limited
+
+For development builds with full debugging support, omit these flags:
+```bash
+go build -o assistant_dev.exe *.go
 ```
 
 ---
@@ -54,11 +68,11 @@ go test -v -cover
 ### Building the Assistant
 
 ```bash
-# Build the assistant (Windows)
-go build -o assistant.exe *.go
+# Build assistant (Windows)
+go build -ldflags="-s -w" -o assistant.exe *.go
 
 # Build with verbose output
-go build -v -o assistant.exe *.go
+go build -v -ldflags="-s -w" -o assistant.exe *.go
 ```
 
 ### Running Tests
@@ -127,8 +141,8 @@ windows-automation-assistant/
 ├── output.go            # Colors, JSON response, output helpers (~45 lines)
 ├── interactive.go       # Interactive mode conversation loop (~318 lines)
 ├── session.go           # Single command session execution (~205 lines)
-├── progress.go          # Progress/spinner indicators (~49 lines)
-├── markdown.go          # Markdown rendering with glamour (~50 lines)
+ ├── progress.go          # Progress/spinner indicators (custom implementation)
+ ├── markdown.go          # Markdown rendering (custom lightweight renderer)
 ├── tools.go             # Tool loading from usertools package (~50 lines)
 ├── assistant_test.go    # Comprehensive unit tests (~38 tests)
 ├── config.yaml          # Default configuration (auto-created)
@@ -151,8 +165,8 @@ windows-automation-assistant/
 | `output.go` | ANSI colors, JSON response struct, terminal output helpers |
 | `interactive.go` | Multi-turn conversation loop, special commands (help, config, clear), signal handling |
 | `session.go` | Single-shot prompt execution with streaming support, signal handling |
-| `progress.go` | Spinner/progress indicator using briandowns/spinner |
-| `markdown.go` | Markdown rendering using charmbracelet/glamour |
+| `progress.go` | Spinner/progress indicator (custom implementation) |
+| `markdown.go` | Markdown rendering (custom lightweight renderer) |
 | `tools.go` | Tool loading from usertools package, filtering by config |
 | `usertools/registry.go` | Tool registry, registration, helper functions |
 | `usertools/weather.go` | Weather tool implementation (wttr.in API) |

@@ -7,7 +7,7 @@ A powerful AI agent built with [GitHub Copilot SDK](https://github.com/github/co
 - **Windows Automation**: Specialized for Windows 11 tasks using available tools
 - **Interactive Mode**: Multi-turn conversations with `--interactive` or `-i` flag
 - **Streaming Responses**: Real-time streaming with progress indicators
-- **Markdown Rendering**: Beautiful terminal output with glamour
+- **Markdown Rendering**: Beautiful terminal output with custom lightweight renderer
 - **Custom Tools**: Extensible tool system with Go-based tool definitions
 - **JSON Output**: Structured output for programmatic use with `--json` flag
 - **YAML Configuration**: Customizable settings via `config.yaml`
@@ -16,14 +16,24 @@ A powerful AI agent built with [GitHub Copilot SDK](https://github.com/github/co
 
 ### Prerequisites
 
-- **Go**: 1.21+
+- **Go**: 1.25.5+
 - **GitHub Copilot CLI**: Installed and authenticated
 - **Windows**: 11 environment (primary target)
 
 ### Build
 
 ```bash
-go build -o assistant.exe *.go
+# Production build (optimized, ~7MB)
+go build -ldflags="-s -w" -o assistant.exe *.go
+
+# Development build (with debug symbols, ~10MB)
+go build -o assistant_dev.exe *.go
+```
+
+Or use the included build script:
+
+```bash
+./build.bat
 ```
 
 ## Usage
@@ -229,7 +239,7 @@ func myToolHandler(invocation ToolInvocation) (ToolResult, error) {
 #### Step 2: Rebuild the Project
 
 ```bash
-go build -o assistant.exe *.go
+go build -ldflags="-s -w" -o assistant.exe *.go
 ```
 
 #### Step 3: Test Your Tool
@@ -370,8 +380,6 @@ go test -v -run TestConfigValidation
 ## Dependencies
 
 - [github.com/github/copilot-sdk](https://github.com/github/copilot-sdk) - GitHub Copilot SDK
-- [github.com/briandowns/spinner](https://github.com/briandowns/spinner) - Terminal spinner
-- [github.com/charmbracelet/glamour](https://github.com/charmbracelet/glamour) - Markdown rendering
 - [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) - YAML parsing
 
 ## License

@@ -8,14 +8,13 @@ import (
 
 // ANSI codes for markdown styling
 const (
-	mdBold      = "\033[1m"
-	mdItalic    = "\033[3m"
-	mdCode      = "\033[48;5;236m\033[38;5;252m" // Dark gray bg, light text
-	mdCodeBlock = "\033[48;5;235m"               // Slightly darker bg for code blocks
-	mdHeader    = "\033[1;36m"                   // Bold cyan for headers
-	mdLink      = "\033[4;34m"                   // Underline blue for links
-	mdList      = "\033[33m"                     // Yellow for list markers
-	mdReset     = "\033[0m"
+	mdBold   = "\033[1m"
+	mdItalic = "\033[3m"
+	mdCode   = "\033[38;5;252m" // Light gray for inline code
+	mdHeader = "\033[1;36m"     // Bold cyan for headers
+	mdLink   = "\033[4;34m"     // Underline blue for links
+	mdList   = "\033[33m"       // Yellow for list markers
+	mdReset  = "\033[0m"
 )
 
 // MarkdownRenderer handles markdown to terminal-formatted text conversion
@@ -82,56 +81,12 @@ func (r *MarkdownRenderer) RenderToTerminal(markdown string) (string, error) {
 	return strings.Join(result, "\n"), nil
 }
 
-// renderCodeBlock renders a code block with colored background and indentation
+// renderCodeBlock renders a code block as plain text
 func (r *MarkdownRenderer) renderCodeBlock(lines []string, lang string) string {
 	if len(lines) == 0 {
 		return ""
 	}
-
-	var sb strings.Builder
-
-	// Find max line length for consistent background
-	maxLen := 0
-	for _, line := range lines {
-		if len(line) > maxLen {
-			maxLen = len(line)
-		}
-	}
-	// Minimum width and add padding
-	if maxLen < 40 {
-		maxLen = 40
-	}
-	maxLen += 4 // padding
-
-	// Top border
-	sb.WriteString("  ")
-	sb.WriteString(mdCodeBlock)
-	sb.WriteString(strings.Repeat(" ", maxLen))
-	sb.WriteString(mdReset)
-	sb.WriteString("\n")
-
-	// Code lines with background
-	for _, line := range lines {
-		sb.WriteString("  ")
-		sb.WriteString(mdCodeBlock)
-		sb.WriteString("  ") // left padding
-		sb.WriteString(line)
-		// Pad to max length for consistent background
-		padding := maxLen - len(line) - 2
-		if padding > 0 {
-			sb.WriteString(strings.Repeat(" ", padding))
-		}
-		sb.WriteString(mdReset)
-		sb.WriteString("\n")
-	}
-
-	// Bottom border
-	sb.WriteString("  ")
-	sb.WriteString(mdCodeBlock)
-	sb.WriteString(strings.Repeat(" ", maxLen))
-	sb.WriteString(mdReset)
-
-	return sb.String()
+	return strings.Join(lines, "\n")
 }
 
 // renderLine renders a single line of markdown
