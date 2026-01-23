@@ -38,7 +38,7 @@ func (p *ProgressIndicator) Stop() {
 	}
 }
 
-// ShowToolExecution shows progress during tool execution
+// ShowToolExecution shows progress during tool execution (only used in debug mode)
 func ShowToolExecution(toolName string, enabled bool) func() {
 	indicator := NewProgressIndicator("Executing "+toolName+"...", enabled)
 	indicator.Start()

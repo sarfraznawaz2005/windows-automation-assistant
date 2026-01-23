@@ -137,8 +137,6 @@ func runSingleCommand(config *Config, prompt, model string) {
 				fmt.Println(content)
 			}
 		case "tool.execution_start":
-			// Stop thinking indicator before tool execution
-			stopThinking()
 			// Track tools used - check both ToolName and ToolRequests
 			var toolName string
 			if event.Data.ToolName != nil {
@@ -149,20 +147,19 @@ func runSingleCommand(config *Config, prompt, model string) {
 			// Skip internal tools like report_intent
 			if toolName != "" && toolName != "report_intent" {
 				toolsUsed = append(toolsUsed, toolName)
-				if !config.Output.JSON {
-					// Stop any existing progress indicator
+				if config.Debug && !config.Output.JSON {
+					// Only show tool execution details in debug mode
+					stopThinking()
 					if toolProgressStop != nil {
 						toolProgressStop()
 					}
-					if config.Debug {
-						fmt.Printf("Executing Tool: %s...\n", toolName)
-					}
+					fmt.Printf("Executing Tool: %s...\n", toolName)
 					toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 				}
 			}
 		case "tool.execution_complete":
-			// Stop the progress indicator
-			if !config.Output.JSON && toolProgressStop != nil {
+			// Stop the tool progress indicator (only active in debug mode)
+			if toolProgressStop != nil {
 				toolProgressStop()
 				toolProgressStop = nil
 			}

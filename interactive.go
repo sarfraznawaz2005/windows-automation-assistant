@@ -147,12 +147,6 @@ func runInteractiveMode(config *Config) {
 				fmt.Println(content)
 			}
 		case "tool.execution_start":
-			// Stop thinking indicator before tool execution
-			stopThinking()
-			// Stop any existing progress indicator
-			if toolProgressStop != nil {
-				toolProgressStop()
-			}
 			// Start new progress indicator for tool execution - check both ToolName and ToolRequests
 			var toolName string
 			if event.Data.ToolName != nil {
@@ -163,12 +157,17 @@ func runInteractiveMode(config *Config) {
 			// Skip internal tools like report_intent
 			if toolName != "" && toolName != "report_intent" {
 				if config.Debug {
+					// Only show tool execution details in debug mode
+					stopThinking()
+					if toolProgressStop != nil {
+						toolProgressStop()
+					}
 					fmt.Printf("Executing Tool: %s...\n", toolName)
+					toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 				}
-				toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 			}
 		case "tool.execution_complete":
-			// Stop the progress indicator
+			// Stop the tool progress indicator (only active in debug mode)
 			if toolProgressStop != nil {
 				toolProgressStop()
 				toolProgressStop = nil
