@@ -58,6 +58,10 @@ assistant.exe --markdown "create a table"
 # Disable markdown
 assistant.exe --no-markdown "simple output"
 
+# Control streaming
+assistant.exe --stream "stream response in real-time"
+assistant.exe --no-stream "wait for full response"
+
 # Control spinner
 assistant.exe --spinner "long task"
 assistant.exe --no-spinner "quick task"
@@ -89,9 +93,10 @@ debug: false
 system_prompt: |
   You are "Windows Automation Assistant"...
 output:
-  markdown: true
+  markdown: false
   json: false
   spinner: true
+  streaming: true
 tools:
   enabled: true
   directory: user-tools

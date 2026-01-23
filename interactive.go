@@ -42,7 +42,7 @@ func runInteractiveMode(config *Config) {
 	// Create a session with system message and custom tools
 	sessionConfig := &copilot.SessionConfig{
 		Model:     config.Model,
-		Streaming: true,
+		Streaming: config.Output.Streaming,
 		SystemMessage: &copilot.SystemMessageConfig{
 			Content: config.SystemPrompt,
 		},
@@ -66,6 +66,7 @@ func runInteractiveMode(config *Config) {
 		fullContent       strings.Builder
 		thinkingIndicator *ProgressIndicator
 		thinkingStopped   bool
+		streamedContent   bool       // track if we've already streamed content
 		mu                sync.Mutex // protect shared state
 	)
 
@@ -111,34 +112,39 @@ func runInteractiveMode(config *Config) {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				if config.Output.Markdown {
-					// Collect content for final markdown rendering
+				if !config.Output.Streaming {
+					// Non-streaming mode: collect content for final output
 					fullContent.WriteString(content)
 				} else {
-					// No markdown - stop spinner and print immediately
+					// Streaming mode - stop spinner and print immediately
 					// Only print if content is not empty (skip empty deltas)
 					if content != "" {
 						stopThinking()
 						fmt.Print(content)
+						streamedContent = true
 					}
 				}
 			}
 		case "assistant.message":
 			// Stop thinking indicator before showing final output
 			stopThinking()
-			if config.Output.Markdown && fullContent.Len() > 0 {
-				// Render collected content as markdown
-				fmt.Println(RenderMarkdown(fullContent.String()))
-			} else if event.Data.Content != nil && fullContent.Len() == 0 {
-				// Non-streaming response
+			if !config.Output.Streaming && fullContent.Len() > 0 {
+				// Non-streaming mode: render collected content
+				content := fullContent.String()
+				if config.Output.Markdown {
+					content = RenderMarkdown(content)
+				}
+				fmt.Println(content)
+			} else if streamedContent {
+				// Streaming mode completed - just add newline
+				fmt.Println()
+			} else if event.Data.Content != nil {
+				// Non-streaming response (no deltas received)
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
-			} else {
-				// Streaming without markdown - just add newline
-				fmt.Println()
 			}
 		case "tool.execution_start":
 			// Stop thinking indicator before tool execution
@@ -219,6 +225,7 @@ func runInteractiveMode(config *Config) {
 		done = make(chan struct{})
 		fullContent.Reset()
 		thinkingStopped = false
+		streamedContent = false
 		thinkingIndicator = NewProgressIndicator("Thinking...", config.Output.Spinner)
 		thinkingIndicator.Start()
 		currentDone := done
@@ -296,6 +303,7 @@ func showCurrentConfig(config *Config) {
 	fmt.Printf("  Debug: %v\n", config.Debug)
 	fmt.Printf("  Markdown: %v\n", config.Output.Markdown)
 	fmt.Printf("  Spinner: %v\n", config.Output.Spinner)
+	fmt.Printf("  Streaming: %v\n", config.Output.Streaming)
 	fmt.Printf("  Tools enabled: %v\n", config.Tools.Enabled)
 	if config.Tools.Enabled {
 		fmt.Printf("  Tools directory: %s\n", config.Tools.Directory)

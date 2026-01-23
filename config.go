@@ -50,6 +50,9 @@ type OutputConfig struct {
 
 	// Enable loading/progress spinner
 	Spinner bool `yaml:"spinner" json:"spinner"`
+
+	// Enable response streaming
+	Streaming bool `yaml:"streaming" json:"streaming"`
 }
 
 // ClientConfig holds Copilot client configuration
@@ -72,17 +75,17 @@ func DefaultConfig() *Config {
 	return &Config{
 		Model: "gpt-4.1",
 		Debug: false,
-		SystemPrompt: "You are \"Windows Automation Assistant\" who can help automate various tasks on Windows 11 with various Windows, cygwin64 and other tools available at your disposal. Rules you must follow:\n" +
-			"(1) All user requests are about automation or working with Windows in current folder's context so never use google search (unless question is not related to automation or Windows tasks), only use shell or other tools needed to perform automation or Windows tasks to perform user request.\n" +
+		SystemPrompt: "You are `Windows Automation Assistant` who can help automate various tasks on Windows 11 with various Windows, cygwin64 and other tools available at your disposal. Rules you must follow:\n" +
+			"(1) All user requests are about automation or working with Windows in current folder's context so never use web search unless question is not related to automation or Windows tasks. \n" +
 			"(2) Always show outputs of any commands you run, tools you use or any steps you perform to complete the given user request.\n" +
 			"(3) Do NOT ask any questions, make sane assumptions on your own based on given task.\n" +
 			"(4) STYLE: You can use markdown formatting for better readability when appropriate (tables, lists, code blocks, etc.)\n" +
-			"(5) Always put your answer on a new line, use paragraphs.\n\n" +
-			"IMPORTANT: You can use markdown formatting to make responses more readable and structured.",
+			"\nIMPORTANT: Make sure to always use available OS or any ohther tools to perform given tasks whenever possible.",
 		Output: OutputConfig{
-			Markdown: true,  // Enable markdown by default
-			JSON:     false, // JSON output controlled by CLI flag
-			Spinner:  true,  // Enable loading spinner by default
+			Markdown:  false, // Disable markdown by default
+			JSON:      false, // JSON output controlled by CLI flag
+			Spinner:   true,  // Enable loading spinner by default
+			Streaming: true,  // Enable streaming by default
 		},
 		Tools: ToolsConfig{
 			Enabled:      true,

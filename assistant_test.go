@@ -591,8 +591,11 @@ func TestDefaultConfig(t *testing.T) {
 	if config.Model != "gpt-4.1" {
 		t.Errorf("Expected default model 'gpt-4.1', got '%s'", config.Model)
 	}
-	if config.Output.Markdown != true {
-		t.Error("Markdown should be enabled by default")
+	if config.Output.Markdown != false {
+		t.Error("Markdown should be disabled by default")
+	}
+	if config.Output.Streaming != true {
+		t.Error("Streaming should be enabled by default")
 	}
 	if config.Output.Spinner != true {
 		t.Error("Spinner should be enabled by default")

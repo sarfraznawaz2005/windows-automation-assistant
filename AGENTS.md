@@ -191,6 +191,10 @@ assistant.exe --json "who are you?"           # JSON output for programmatic use
 assistant.exe --markdown "create a table"      # Force markdown rendering
 assistant.exe --no-markdown "simple output"    # Disable markdown
 
+# Streaming options
+assistant.exe --stream "real-time response"    # Force enable streaming (default)
+assistant.exe --no-stream "wait for full"      # Disable streaming
+
 # Spinner options
 assistant.exe --spinner "long task"            # Force enable spinner
 assistant.exe --no-spinner "quick task"        # Disable spinner
@@ -359,6 +363,8 @@ var (
     markdown       = flag.Bool("markdown", false, "Force enable markdown rendering")
     noSpinner      = flag.Bool("no-spinner", false, "Disable loading spinner")
     showSpinner    = flag.Bool("spinner", false, "Force enable loading spinner")
+    noStream       = flag.Bool("no-stream", false, "Disable response streaming")
+    stream         = flag.Bool("stream", false, "Force enable response streaming")
     configPath     = flag.String("config", "", "Path to config file")
     generateConfig = flag.Bool("generate-config", false, "Generate default config file and exit")
 )

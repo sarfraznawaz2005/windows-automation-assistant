@@ -18,6 +18,8 @@ var (
 	markdown       = flag.Bool("markdown", false, "Force enable markdown rendering")
 	noSpinner      = flag.Bool("no-spinner", false, "Disable loading spinner")
 	showSpinner    = flag.Bool("spinner", false, "Force enable loading spinner")
+	noStream       = flag.Bool("no-stream", false, "Disable response streaming")
+	stream         = flag.Bool("stream", false, "Force enable response streaming")
 	configPath     = flag.String("config", "", "Path to config file")
 	generateConfig = flag.Bool("generate-config", false, "Generate default config file and exit")
 )
@@ -41,6 +43,7 @@ func setupUsage() {
 		fmt.Fprintf(os.Stderr, "  %s --json \"analyze this file\" \"gpt-4.1\"\n", execName)
 		fmt.Fprintf(os.Stderr, "  %s --markdown \"create a table of processes\"\n", execName)
 		fmt.Fprintf(os.Stderr, "  %s --no-markdown \"simple text only\"\n", execName)
+		fmt.Fprintf(os.Stderr, "  %s --no-stream \"wait for full response\"\n", execName)
 		fmt.Fprintf(os.Stderr, "  %s --generate-config\n", execName)
 		fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 		fmt.Fprintf(os.Stderr, "  ASSISTANT_DEBUG=1     Show detailed error information with file/line numbers\n")
@@ -82,11 +85,18 @@ func parseFlags() *Config {
 		config.Output.Spinner = true
 	}
 
+	if *noStream {
+		config.Output.Streaming = false
+	} else if *stream {
+		config.Output.Streaming = true
+	}
+
 	// JSON output mode
 	if *jsonOutput {
 		config.Output.JSON = true
-		config.Output.Markdown = false // Disable markdown for clean JSON
-		config.Output.Spinner = false  // Disable spinner for clean JSON
+		config.Output.Markdown = false  // Disable markdown for clean JSON
+		config.Output.Spinner = false   // Disable spinner for clean JSON
+		config.Output.Streaming = false // Disable streaming for clean JSON
 	}
 
 	// Override config with environment variables

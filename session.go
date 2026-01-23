@@ -40,7 +40,7 @@ func runSingleCommand(config *Config, prompt, model string) {
 	// Create a session with system message and custom tools
 	sessionConfig := &copilot.SessionConfig{
 		Model:     model,
-		Streaming: true,
+		Streaming: config.Output.Streaming,
 		SystemMessage: &copilot.SystemMessageConfig{
 			Content: config.SystemPrompt,
 		},
@@ -65,6 +65,7 @@ func runSingleCommand(config *Config, prompt, model string) {
 	var sessionError string         // track session errors for JSON output
 	var thinkingIndicator *ProgressIndicator
 	thinkingStopped := false
+	streamedContent := false // track if we've already streamed content
 
 	// Helper to stop thinking indicator
 	stopThinking := func() {
@@ -95,15 +96,16 @@ func runSingleCommand(config *Config, prompt, model string) {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				if config.Output.JSON || config.Output.Markdown {
-					// Collect content for final output
+				if config.Output.JSON || !config.Output.Streaming {
+					// Collect content for final output (JSON or non-streaming mode)
 					fullContent.WriteString(content)
 				} else {
-					// No markdown/JSON - stop spinner and print immediately
+					// Streaming mode - stop spinner and print immediately
 					// Only print if content is not empty (skip empty deltas)
 					if content != "" {
 						stopThinking()
 						fmt.Print(content)
+						streamedContent = true
 					}
 				}
 			}
@@ -111,20 +113,28 @@ func runSingleCommand(config *Config, prompt, model string) {
 			// Stop thinking indicator before showing final output
 			stopThinking()
 			if config.Output.JSON {
+				// For JSON output, capture content if not already collected via deltas
+				if fullContent.Len() == 0 && event.Data.Content != nil {
+					fullContent.WriteString(*event.Data.Content)
+				}
 				// JSON output handled at session.idle
-			} else if config.Output.Markdown && fullContent.Len() > 0 {
-				// Render collected content as markdown
-				fmt.Println(RenderMarkdown(fullContent.String()))
-			} else if event.Data.Content != nil && fullContent.Len() == 0 {
-				// Non-streaming response
+			} else if !config.Output.Streaming && fullContent.Len() > 0 {
+				// Non-streaming mode: render collected content
+				content := fullContent.String()
+				if config.Output.Markdown {
+					content = RenderMarkdown(content)
+				}
+				fmt.Println(content)
+			} else if streamedContent {
+				// Streaming mode completed - just add newline
+				fmt.Println()
+			} else if event.Data.Content != nil {
+				// Non-streaming response (no deltas received)
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
-			} else {
-				// Streaming without markdown - just add newline
-				fmt.Println()
 			}
 		case "tool.execution_start":
 			// Stop thinking indicator before tool execution
