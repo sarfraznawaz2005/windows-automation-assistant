@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	copilot "github.com/github/copilot-sdk/go"
@@ -25,16 +26,34 @@ func runSingleCommand(config *Config, prompt, model string) {
 		AutoRestart: config.ClientOptions.AutoRestart,
 	})
 
-	// Start the client
-	if err := client.Start(); err != nil {
-		handleError(err, "Starting Copilot client")
+	// Start client and load tools in parallel for faster startup
+	var wg sync.WaitGroup
+	var clientErr error
+	var customTools []copilot.Tool
+	var toolsErr error
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		clientErr = client.Start()
+	}()
+
+	go func() {
+		defer wg.Done()
+		customTools, toolsErr = loadCustomTools(config)
+	}()
+
+	wg.Wait()
+
+	// Handle errors after parallel operations complete
+	if clientErr != nil {
+		handleError(clientErr, "Starting Copilot client")
 	}
 	defer client.Stop()
 
-	// Load custom tools
-	customTools, err := loadCustomTools(config)
-	if err != nil {
-		handleError(err, "Loading custom tools")
+	if toolsErr != nil {
+		handleError(toolsErr, "Loading custom tools")
 	}
 
 	// Create a session with system message and custom tools
@@ -60,9 +79,10 @@ func runSingleCommand(config *Config, prompt, model string) {
 	// Set up event handler for streaming responses
 	done := make(chan bool)
 	var toolProgressStop func()
-	var fullContent strings.Builder // collect streamed content
-	var toolsUsed []string          // track tools used for JSON output
-	var sessionError string         // track session errors for JSON output
+	var fullContent strings.Builder
+	fullContent.Grow(4096)  // Pre-allocate 4KB for typical responses
+	var toolsUsed []string  // track tools used for JSON output
+	var sessionError string // track session errors for JSON output
 	var thinkingIndicator *ProgressIndicator
 	thinkingStopped := false
 	streamedContent := false // track if we've already streamed content

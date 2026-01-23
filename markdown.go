@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/glamour"
 )
@@ -34,17 +35,24 @@ func (r *MarkdownRenderer) RenderToTerminal(markdown string) (string, error) {
 	return r.renderer.Render(markdown)
 }
 
-// Global markdown renderer instance
-var globalMarkdownRenderer *MarkdownRenderer
+// Global markdown renderer instance (lazily initialized)
+var (
+	globalMarkdownRenderer *MarkdownRenderer
+	markdownOnce           sync.Once
+)
 
-// init initializes the global markdown renderer
-func init() {
-	globalMarkdownRenderer = NewMarkdownRenderer()
+// getMarkdownRenderer lazily initializes and returns the global markdown renderer
+func getMarkdownRenderer() *MarkdownRenderer {
+	markdownOnce.Do(func() {
+		globalMarkdownRenderer = NewMarkdownRenderer()
+	})
+	return globalMarkdownRenderer
 }
 
 // RenderMarkdown is a convenience function using the global renderer
 func RenderMarkdown(markdown string) string {
-	formatted, err := globalMarkdownRenderer.RenderToTerminal(markdown)
+	renderer := getMarkdownRenderer()
+	formatted, err := renderer.RenderToTerminal(markdown)
 	if err != nil {
 		return markdown // Return original if conversion fails
 	}

@@ -20,12 +20,6 @@ func runInteractiveMode(config *Config) {
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
 
-	// Load custom tools
-	customTools, err := loadCustomTools(config)
-	if err != nil {
-		handleError(err, "Loading custom tools")
-	}
-
 	// Create client
 	client := copilot.NewClient(&copilot.ClientOptions{
 		LogLevel:    config.ClientOptions.LogLevel,
@@ -34,10 +28,35 @@ func runInteractiveMode(config *Config) {
 		AutoRestart: config.ClientOptions.AutoRestart,
 	})
 
-	if err := client.Start(); err != nil {
-		handleError(err, "Starting Copilot client")
+	// Start client and load tools in parallel for faster startup
+	var wg sync.WaitGroup
+	var clientErr error
+	var customTools []copilot.Tool
+	var toolsErr error
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		clientErr = client.Start()
+	}()
+
+	go func() {
+		defer wg.Done()
+		customTools, toolsErr = loadCustomTools(config)
+	}()
+
+	wg.Wait()
+
+	// Handle errors after parallel operations complete
+	if clientErr != nil {
+		handleError(clientErr, "Starting Copilot client")
 	}
 	defer client.Stop()
+
+	if toolsErr != nil {
+		handleError(toolsErr, "Loading custom tools")
+	}
 
 	// Create a session with system message and custom tools
 	sessionConfig := &copilot.SessionConfig{
@@ -69,6 +88,7 @@ func runInteractiveMode(config *Config) {
 		streamedContent   bool       // track if we've already streamed content
 		mu                sync.Mutex // protect shared state
 	)
+	fullContent.Grow(4096) // Pre-allocate 4KB for typical responses
 
 	// Helper to stop thinking indicator
 	stopThinking := func() {

@@ -11,6 +11,16 @@ import (
 	copilot "github.com/github/copilot-sdk/go"
 )
 
+// Shared HTTP client with connection pooling for better performance
+var httpClient = &http.Client{
+	Timeout: 10 * time.Second,
+	Transport: &http.Transport{
+		MaxIdleConns:        10,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
+
 func init() {
 	Register(Tool{
 		Name:        "weather",
@@ -117,13 +127,8 @@ func fetchWeather(city string) (weatherResult, error) {
 	}
 	url += "?format=j1"
 
-	// Create HTTP client with timeout
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	// Make the request
-	resp, err := client.Get(url)
+	// Make the request using shared HTTP client
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return weatherResult{}, fmt.Errorf("failed to fetch weather: %w", err)
 	}
