@@ -1,0 +1,11 @@
+name: weather
+description: Get current weather information for a city
+parameters:
+  type: object
+  properties:
+    city:
+      type: string
+      description: The city name to get weather for
+  required:
+    - city
+handler: weather

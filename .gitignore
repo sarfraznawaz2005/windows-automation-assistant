@@ -1,0 +1,86 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+assistant
+
+# Go build cache
+.cache/
+
+# Go test binaries
+*.test
+
+# Go coverage files
+*.out
+coverage.html
+
+# Go module proxy cache
+/go/pkg/mod/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows specific
+desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Environment files (may contain sensitive data)
+.env
+.env.local
+.env.*.local
+
+# Config files that might be customized locally
+config.local.yaml
+*.local.yaml
+
+# Build artifacts
+dist/
+build/
+bin/
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Go module downloads (if vendoring is used)
+/vendor/
+
+# Local documentation
+/docs/
+
+desktop.ini
