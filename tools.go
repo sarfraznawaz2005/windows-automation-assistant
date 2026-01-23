@@ -1,7 +1,7 @@
 package main
 
 import (
-	"copilot-demo/usertools"
+	"windows-assistant/usertools"
 
 	copilot "github.com/github/copilot-sdk/go"
 )

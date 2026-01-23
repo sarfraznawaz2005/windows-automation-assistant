@@ -1,7 +1,6 @@
 package main
 
 import (
-	"copilot-demo/usertools"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"windows-assistant/usertools"
 )
 
 // TestConfigValidation tests the configuration validation

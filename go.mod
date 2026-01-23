@@ -1,4 +1,4 @@
-module copilot-demo
+module windows-assistant
 
 go 1.25.5
 

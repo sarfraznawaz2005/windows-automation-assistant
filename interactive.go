@@ -162,7 +162,9 @@ func runInteractiveMode(config *Config) {
 			}
 			// Skip internal tools like report_intent
 			if toolName != "" && toolName != "report_intent" {
-				fmt.Printf("Executing Tool: %s...\n", toolName)
+				if config.Debug {
+					fmt.Printf("Executing Tool: %s...\n", toolName)
+				}
 				toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 			}
 		case "tool.execution_complete":

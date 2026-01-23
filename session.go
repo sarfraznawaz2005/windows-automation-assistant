@@ -154,7 +154,9 @@ func runSingleCommand(config *Config, prompt, model string) {
 					if toolProgressStop != nil {
 						toolProgressStop()
 					}
-					fmt.Printf("Executing Tool: %s...\n", toolName)
+					if config.Debug {
+						fmt.Printf("Executing Tool: %s...\n", toolName)
+					}
 					toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
 				}
 			}
