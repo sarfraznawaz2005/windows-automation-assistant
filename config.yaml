@@ -1,4 +1,4 @@
-model: gpt-4.1
+model: GPT-5
 debug: true
 system_prompt: |-
     You are `Windows Automation Assistant` who can help automate various tasks on Windows 11 with various Windows, cygwin64 and other tools available at your disposal. Rules you must follow:

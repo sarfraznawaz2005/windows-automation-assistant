@@ -267,27 +267,34 @@ func showCurrentConfig() {
 func processInteractiveMessage(session *copilot.Session, message string, config *Config) error {
 	done := make(chan bool)
 	var toolProgressStop func()
-	var streamedContent bool // track if we already streamed content
+	var fullContent strings.Builder // collect streamed content for markdown rendering
 
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				// Don't render markdown on deltas - just print raw text for streaming
-				fmt.Print(content)
-				streamedContent = true
+				if config.Output.Markdown {
+					// Collect content for final markdown rendering
+					fullContent.WriteString(content)
+				} else {
+					// No markdown - print immediately
+					fmt.Print(content)
+				}
 			}
 		case "assistant.message":
-			// Only print final message if we didn't stream it already
-			if !streamedContent && event.Data.Content != nil {
+			if config.Output.Markdown && fullContent.Len() > 0 {
+				// Render collected content as markdown
+				fmt.Println(RenderMarkdown(fullContent.String()))
+			} else if event.Data.Content != nil && fullContent.Len() == 0 {
+				// Non-streaming response
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
-			} else if streamedContent {
-				// Just add a newline after streaming completes
+			} else {
+				// Streaming without markdown - just add newline
 				fmt.Println()
 			}
 		case "tool.execution_start":
@@ -486,26 +493,33 @@ func main() {
 	// Set up event handler for streaming responses
 	done := make(chan bool)
 	var toolProgressStop func()
-	var streamedContent bool // track if we already streamed content
+	var fullContent strings.Builder // collect streamed content for markdown rendering
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				// Don't render markdown on deltas - just print raw text for streaming
-				fmt.Print(content)
-				streamedContent = true
+				if config.Output.Markdown {
+					// Collect content for final markdown rendering
+					fullContent.WriteString(content)
+				} else {
+					// No markdown - print immediately
+					fmt.Print(content)
+				}
 			}
 		case "assistant.message":
-			// Only print final message if we didn't stream it already
-			if !streamedContent && event.Data.Content != nil {
+			if config.Output.Markdown && fullContent.Len() > 0 {
+				// Render collected content as markdown
+				fmt.Println(RenderMarkdown(fullContent.String()))
+			} else if event.Data.Content != nil && fullContent.Len() == 0 {
+				// Non-streaming response
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
-			} else if streamedContent {
-				// Just add a newline after streaming completes
+			} else {
+				// Streaming without markdown - just add newline
 				fmt.Println()
 			}
 		case "tool.execution_start":
