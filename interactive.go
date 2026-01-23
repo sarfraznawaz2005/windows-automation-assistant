@@ -310,8 +310,8 @@ func showCurrentConfig(config *Config) {
 	fmt.Printf("  Spinner: %v\n", config.Output.Spinner)
 	fmt.Printf("  Streaming: %v\n", config.Output.Streaming)
 	fmt.Printf("  Tools enabled: %v\n", config.Tools.Enabled)
-	if config.Tools.Enabled {
-		fmt.Printf("  Tools directory: %s\n", config.Tools.Directory)
+	if config.Tools.Enabled && len(config.Tools.EnabledTools) > 0 {
+		fmt.Printf("  Enabled tools: %v\n", config.Tools.EnabledTools)
 	}
 	fmt.Println()
 }

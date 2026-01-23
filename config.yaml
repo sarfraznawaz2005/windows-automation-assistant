@@ -8,9 +8,7 @@ output:
     streaming: true
 tools:
     enabled: true
-    directory: user-tools
-    enabled_tools:
-        - weather
+    enabled_tools: []
 client:
     cli_path: ""
     log_level: error

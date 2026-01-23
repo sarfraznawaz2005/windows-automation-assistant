@@ -1,6 +1,7 @@
 package main
 
 import (
+	"copilot-demo/usertools"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,14 +30,6 @@ func TestConfigValidation(t *testing.T) {
 	config.SystemPrompt = ""
 	if err := ValidateConfig(config); err == nil {
 		t.Error("Config with empty system prompt should be invalid")
-	}
-
-	// Test invalid config - tools enabled but empty directory
-	config = DefaultConfig()
-	config.Tools.Enabled = true
-	config.Tools.Directory = ""
-	if err := ValidateConfig(config); err == nil {
-		t.Error("Config with tools enabled but empty directory should be invalid")
 	}
 }
 
@@ -223,19 +216,22 @@ func TestJSONResponseError(t *testing.T) {
 	}
 }
 
-// ============ TOOLS.GO TESTS ============
+// ============ TOOLS.GO / USERTOOLS TESTS ============
 
-// TestMapToStruct tests the generic map-to-struct conversion
+// TestMapToStruct tests the usertools MapToStruct helper
 func TestMapToStruct(t *testing.T) {
-	// Test valid conversion
+	type TestParams struct {
+		City string `json:"city"`
+	}
+
 	data := map[string]interface{}{
 		"city": "New York",
 	}
 
-	var params WeatherParams
-	err := mapToStruct(data, &params)
+	var params TestParams
+	err := usertools.MapToStruct(data, &params)
 	if err != nil {
-		t.Fatalf("mapToStruct failed: %v", err)
+		t.Fatalf("MapToStruct failed: %v", err)
 	}
 
 	if params.City != "New York" {
@@ -258,9 +254,9 @@ func TestMapToStructComplex(t *testing.T) {
 	}
 
 	var params TestParams
-	err := mapToStruct(data, &params)
+	err := usertools.MapToStruct(data, &params)
 	if err != nil {
-		t.Fatalf("mapToStruct failed: %v", err)
+		t.Fatalf("MapToStruct failed: %v", err)
 	}
 
 	if params.Name != "test" {
@@ -276,67 +272,55 @@ func TestMapToStructComplex(t *testing.T) {
 
 // TestMapToStructInvalid tests error handling for invalid data
 func TestMapToStructInvalid(t *testing.T) {
-	// Test with invalid target (non-pointer)
-	var params WeatherParams
+	type TestParams struct {
+		City string `json:"city"`
+	}
+	var params TestParams
 	data := "invalid data type"
-	err := mapToStruct(data, params) // non-pointer target
+	err := usertools.MapToStruct(data, params) // non-pointer target
 	if err == nil {
-		t.Error("mapToStruct should fail with non-pointer target")
+		t.Error("MapToStruct should fail with non-pointer target")
 	}
 }
 
-// TestValidateToolDefinition tests tool definition validation
-func TestValidateToolDefinition(t *testing.T) {
-	tests := []struct {
-		name    string
-		def     ToolDefinition
-		wantErr bool
-	}{
-		{
-			name: "valid definition",
-			def: ToolDefinition{
-				Name:        "test",
-				Description: "Test tool",
-				Handler:     "weather",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty name",
-			def: ToolDefinition{
-				Name:        "",
-				Description: "Test tool",
-				Handler:     "weather",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty description",
-			def: ToolDefinition{
-				Name:        "test",
-				Description: "",
-				Handler:     "weather",
-			},
-			wantErr: true,
-		},
-		{
-			name: "empty handler",
-			def: ToolDefinition{
-				Name:        "test",
-				Description: "Test tool",
-				Handler:     "",
-			},
-			wantErr: true,
-		},
+// TestUsertoolsRegistry tests the usertools registry functions
+func TestUsertoolsRegistry(t *testing.T) {
+	// Test that tools are registered (weather and sum are auto-registered via init())
+	tools := usertools.GetAll()
+	if len(tools) < 2 {
+		t.Errorf("Expected at least 2 tools (weather, sum), got %d", len(tools))
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := validateToolDefinition(&tt.def)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateToolDefinition() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
+	// Test Get function
+	weather := usertools.Get("weather")
+	if weather == nil {
+		t.Error("weather tool should be registered")
+	}
+	if weather != nil && weather.Name != "weather" {
+		t.Errorf("Expected tool name 'weather', got '%s'", weather.Name)
+	}
+
+	sum := usertools.Get("sum")
+	if sum == nil {
+		t.Error("sum tool should be registered")
+	}
+
+	// Test Get for non-existent tool
+	unknown := usertools.Get("unknown_tool")
+	if unknown != nil {
+		t.Error("unknown tool should return nil")
+	}
+
+	// Test List function
+	names := usertools.List()
+	if len(names) < 2 {
+		t.Errorf("Expected at least 2 tool names, got %d", len(names))
+	}
+
+	// Test Count function
+	count := usertools.Count()
+	if count < 2 {
+		t.Errorf("Expected at least 2 tools, got %d", count)
 	}
 }
 
@@ -367,24 +351,6 @@ func TestIsToolEnabled(t *testing.T) {
 	}
 }
 
-// TestCreateToolHandler tests tool handler creation
-func TestCreateToolHandler(t *testing.T) {
-	// Test known handler
-	handler, err := createToolHandler("weather")
-	if err != nil {
-		t.Fatalf("Failed to create weather handler: %v", err)
-	}
-	if handler == nil {
-		t.Error("Handler should not be nil")
-	}
-
-	// Test unknown handler
-	_, err = createToolHandler("unknown_handler")
-	if err == nil {
-		t.Error("Should return error for unknown handler")
-	}
-}
-
 // TestLoadCustomToolsDisabled tests loading tools when disabled
 func TestLoadCustomToolsDisabled(t *testing.T) {
 	config := DefaultConfig()
@@ -399,93 +365,36 @@ func TestLoadCustomToolsDisabled(t *testing.T) {
 	}
 }
 
-// TestLoadCustomToolsNoDirectory tests loading tools when directory doesn't exist
-func TestLoadCustomToolsNoDirectory(t *testing.T) {
+// TestLoadCustomToolsEnabled tests loading tools when enabled
+func TestLoadCustomToolsEnabled(t *testing.T) {
 	config := DefaultConfig()
 	config.Tools.Enabled = true
-	config.Tools.Directory = "nonexistent-tools-directory-12345"
+	config.Tools.EnabledTools = []string{} // All tools enabled
 
 	tools, err := loadCustomTools(config)
 	if err != nil {
-		t.Fatalf("loadCustomTools should not error when directory doesn't exist: %v", err)
+		t.Fatalf("loadCustomTools should not error: %v", err)
 	}
-	if tools != nil {
-		t.Error("loadCustomTools should return nil when directory doesn't exist")
+	if len(tools) < 2 {
+		t.Errorf("Expected at least 2 tools (weather, sum), got %d", len(tools))
 	}
 }
 
-// TestLoadCustomToolsWithValidTool tests loading a valid tool from YAML
-func TestLoadCustomToolsWithValidTool(t *testing.T) {
-	// Create temp directory with a valid tool
-	tempDir := t.TempDir()
-	toolYAML := `name: test_tool
-description: A test tool
-handler: weather
-parameters:
-  type: object
-  properties:
-    city:
-      type: string
-`
-	err := os.WriteFile(filepath.Join(tempDir, "test.yaml"), []byte(toolYAML), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test tool file: %v", err)
-	}
-
+// TestLoadCustomToolsFiltered tests loading only specific tools
+func TestLoadCustomToolsFiltered(t *testing.T) {
 	config := DefaultConfig()
 	config.Tools.Enabled = true
-	config.Tools.Directory = tempDir
-	config.Tools.EnabledTools = []string{"test_tool"}
+	config.Tools.EnabledTools = []string{"weather"} // Only weather enabled
 
 	tools, err := loadCustomTools(config)
 	if err != nil {
-		t.Fatalf("loadCustomTools failed: %v", err)
+		t.Fatalf("loadCustomTools should not error: %v", err)
 	}
 	if len(tools) != 1 {
-		t.Errorf("Expected 1 tool, got %d", len(tools))
+		t.Errorf("Expected 1 tool (weather only), got %d", len(tools))
 	}
-	if tools[0].Name != "test_tool" {
-		t.Errorf("Expected tool name 'test_tool', got '%s'", tools[0].Name)
-	}
-}
-
-// TestLoadToolFromFileInvalidYAML tests loading tool with invalid YAML
-func TestLoadToolFromFileInvalidYAML(t *testing.T) {
-	tempDir := t.TempDir()
-	invalidYAML := `this is not: valid: yaml: content`
-	yamlPath := filepath.Join(tempDir, "invalid.yaml")
-	err := os.WriteFile(yamlPath, []byte(invalidYAML), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	config := DefaultConfig()
-	_, err = loadToolFromFile(yamlPath, config)
-	if err == nil {
-		t.Error("loadToolFromFile should fail with invalid YAML")
-	}
-}
-
-// TestLoadToolFromFileUnknownHandler tests loading tool with unknown handler
-func TestLoadToolFromFileUnknownHandler(t *testing.T) {
-	tempDir := t.TempDir()
-	toolYAML := `name: test_tool
-description: A test tool
-handler: unknown_handler
-`
-	yamlPath := filepath.Join(tempDir, "unknown.yaml")
-	err := os.WriteFile(yamlPath, []byte(toolYAML), 0644)
-	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
-	}
-
-	config := DefaultConfig()
-	config.Tools.Enabled = true
-	config.Tools.EnabledTools = []string{"test_tool"}
-
-	_, err = loadToolFromFile(yamlPath, config)
-	if err == nil {
-		t.Error("loadToolFromFile should fail with unknown handler")
+	if len(tools) > 0 && tools[0].Name != "weather" {
+		t.Errorf("Expected tool 'weather', got '%s'", tools[0].Name)
 	}
 }
 
@@ -544,8 +453,8 @@ func TestDefaultConfig(t *testing.T) {
 	if config.Tools.Enabled != true {
 		t.Error("Tools should be enabled by default")
 	}
-	if config.Tools.Directory != "user-tools" {
-		t.Errorf("Expected tools directory 'user-tools', got '%s'", config.Tools.Directory)
+	if len(config.Tools.EnabledTools) != 0 {
+		t.Error("EnabledTools should be empty by default (meaning all tools enabled)")
 	}
 	if config.SystemPrompt == "" {
 		t.Error("SystemPrompt should not be empty")

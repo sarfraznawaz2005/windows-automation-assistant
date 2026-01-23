@@ -122,20 +122,22 @@ go clean -modcache
 windows-automation-assistant/
 ├── main.go              # Entry point (~31 lines)
 ├── cli.go               # CLI flags, usage, argument parsing (~133 lines)
-├── config.go            # Configuration management (~210 lines)
+├── config.go            # Configuration management (~200 lines)
 ├── errors.go            # Error handling utilities (~63 lines)
 ├── output.go            # Colors, JSON response, output helpers (~45 lines)
-├── interactive.go       # Interactive mode conversation loop (~301 lines)
+├── interactive.go       # Interactive mode conversation loop (~318 lines)
 ├── session.go           # Single command session execution (~205 lines)
 ├── progress.go          # Progress/spinner indicators (~49 lines)
 ├── markdown.go          # Markdown rendering with glamour (~50 lines)
-├── tools.go             # Custom tools framework (~206 lines)
-├── assistant_test.go    # Comprehensive unit tests (~901 lines, 47 tests)
+├── tools.go             # Tool loading from usertools package (~50 lines)
+├── assistant_test.go    # Comprehensive unit tests (~38 tests)
 ├── config.yaml          # Default configuration (auto-created)
 ├── AGENTS.md            # This file - guidelines for AI agents
 ├── README.md            # Project documentation
-└── user-tools/          # Directory for custom tool definitions
-    └── weather.yaml     # Example weather tool
+└── usertools/           # Custom tools package
+    ├── registry.go      # Tool registry and helper functions
+    ├── weather.go       # Weather tool (wttr.in API)
+    └── sum.go           # Sum tool (example)
 ```
 
 ### File Responsibilities
@@ -151,25 +153,15 @@ windows-automation-assistant/
 | `session.go` | Single-shot prompt execution with streaming support, signal handling |
 | `progress.go` | Spinner/progress indicator using briandowns/spinner |
 | `markdown.go` | Markdown rendering using charmbracelet/glamour |
-| `tools.go` | Custom tool loading from YAML, tool handler registry, weather tool implementation |
+| `tools.go` | Tool loading from usertools package, filtering by config |
+| `usertools/registry.go` | Tool registry, registration, helper functions |
+| `usertools/weather.go` | Weather tool implementation (wttr.in API) |
+| `usertools/sum.go` | Sum tool implementation (example) |
 | `assistant_test.go` | Comprehensive unit tests for all modules |
 
 ## Test Coverage Summary
 
-The project has **47 tests** with **~32% statement coverage**.
-
-### Fully Covered Functions (100%):
-- `isInteractiveMode`, `DefaultConfig`, `boolPtr`, `ValidateConfig`
-- `getUserFriendlyError`, `isExitCommand`, `handleSpecialCommand`
-- `showHelp`, `showCurrentConfig`, `RenderToTerminal`, `safeColor`
-- `NewProgressIndicator`, `Start`, `ShowToolExecution`
-- `validateToolDefinition`, `isToolEnabled`, `weatherToolHandler`
-- `generateMockWeather`, `createToolHandler`
-
-### Well Covered Functions (75-87%):
-- `LoadConfig`, `SaveConfig`, `findConfigFile`
-- `loadCustomTools`, `loadToolFromFile`, `mapToStruct`
-- `NewMarkdownRenderer`, `RenderMarkdown`
+The project has **38 tests**.
 
 ### Not Tested (Integration/Runtime):
 - `main`, `runSingleCommand`, `runInteractiveMode` - Require Copilot SDK client

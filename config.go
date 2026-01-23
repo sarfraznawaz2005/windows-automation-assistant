@@ -33,10 +33,7 @@ type ToolsConfig struct {
 	// Enable custom tools
 	Enabled bool `yaml:"enabled" json:"enabled"`
 
-	// Directory containing custom tools
-	Directory string `yaml:"directory" json:"directory"`
-
-	// List of enabled tools
+	// List of enabled tools (empty means all tools are enabled)
 	EnabledTools []string `yaml:"enabled_tools" json:"enabled_tools"`
 }
 
@@ -89,8 +86,7 @@ func DefaultConfig() *Config {
 		},
 		Tools: ToolsConfig{
 			Enabled:      true,
-			Directory:    "user-tools",
-			EnabledTools: []string{"weather"},
+			EnabledTools: []string{}, // Empty means all tools are enabled
 		},
 		ClientOptions: ClientConfig{
 			LogLevel:    "error",
@@ -202,11 +198,6 @@ func ValidateConfig(config *Config) error {
 	// Validate system prompt
 	if config.SystemPrompt == "" {
 		return fmt.Errorf("system_prompt cannot be empty")
-	}
-
-	// Validate tools directory if enabled
-	if config.Tools.Enabled && config.Tools.Directory == "" {
-		return fmt.Errorf("tools.directory cannot be empty when tools are enabled")
 	}
 
 	return nil
