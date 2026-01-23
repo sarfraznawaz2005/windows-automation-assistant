@@ -116,8 +116,11 @@ func runInteractiveMode(config *Config) {
 					fullContent.WriteString(content)
 				} else {
 					// No markdown - stop spinner and print immediately
-					stopThinking()
-					fmt.Print(content)
+					// Only print if content is not empty (skip empty deltas)
+					if content != "" {
+						stopThinking()
+						fmt.Print(content)
+					}
 				}
 			}
 		case "assistant.message":

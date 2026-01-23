@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/glamour"
 )
 
@@ -46,5 +48,6 @@ func RenderMarkdown(markdown string) string {
 	if err != nil {
 		return markdown // Return original if conversion fails
 	}
-	return formatted
+	// Trim leading/trailing whitespace that glamour adds for styling
+	return strings.TrimSpace(formatted)
 }
