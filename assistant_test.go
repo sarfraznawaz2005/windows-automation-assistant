@@ -717,8 +717,12 @@ func TestNewMarkdownRenderer(t *testing.T) {
 	if renderer == nil {
 		t.Error("NewMarkdownRenderer should not return nil")
 	}
-	if renderer.renderer == nil {
-		t.Error("Internal renderer should not be nil")
+	// Test that renderer has compiled patterns
+	if renderer.boldPattern == nil {
+		t.Error("Bold pattern should be compiled")
+	}
+	if renderer.inlineCodePattern == nil {
+		t.Error("Inline code pattern should be compiled")
 	}
 }
 
