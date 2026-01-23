@@ -47,6 +47,9 @@ type OutputConfig struct {
 
 	// Enable JSON output mode
 	JSON bool `yaml:"json" json:"json"`
+
+	// Enable loading/progress spinner
+	Spinner bool `yaml:"spinner" json:"spinner"`
 }
 
 // ClientConfig holds Copilot client configuration
@@ -79,6 +82,7 @@ func DefaultConfig() *Config {
 		Output: OutputConfig{
 			Markdown: true,  // Enable markdown by default
 			JSON:     false, // JSON output controlled by CLI flag
+			Spinner:  true,  // Enable loading spinner by default
 		},
 		Tools: ToolsConfig{
 			Enabled:      true,
@@ -100,9 +104,19 @@ func LoadConfig(configPath string) (*Config, error) {
 		configPath = findConfigFile()
 	}
 
-	// If no config file found, return default
+	// If no config file found, create default config file and return default
 	if configPath == "" {
-		return DefaultConfig(), nil
+		config := DefaultConfig()
+		// Auto-create config file in current directory
+		if err := SaveConfig(config, "config.yaml"); err != nil {
+			// Non-fatal: just log if debug and continue with defaults
+			if os.Getenv("ASSISTANT_DEBUG") == "1" {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Could not auto-create config file: %v\n", err)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Created default config file: config.yaml\n")
+		}
+		return config, nil
 	}
 
 	// Read config file
