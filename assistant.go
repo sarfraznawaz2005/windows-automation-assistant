@@ -267,24 +267,28 @@ func showCurrentConfig() {
 func processInteractiveMessage(session *copilot.Session, message string, config *Config) error {
 	done := make(chan bool)
 	var toolProgressStop func()
+	var streamedContent bool // track if we already streamed content
 
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				if config.Output.Markdown {
-					content = RenderMarkdown(content)
-				}
+				// Don't render markdown on deltas - just print raw text for streaming
 				fmt.Print(content)
+				streamedContent = true
 			}
 		case "assistant.message":
-			if event.Data.Content != nil {
+			// Only print final message if we didn't stream it already
+			if !streamedContent && event.Data.Content != nil {
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
+			} else if streamedContent {
+				// Just add a newline after streaming completes
+				fmt.Println()
 			}
 		case "tool.execution_start":
 			// Stop any existing progress indicator
@@ -406,6 +410,10 @@ func main() {
 	if isInteractive {
 		// Interactive mode - no arguments needed
 		model = config.Model
+		// Debug: show which model is being used
+		if config.Debug {
+			fmt.Fprintf(os.Stderr, "%s[DEBUG] Using model: %s%s\n", safeColor(yellow), model, safeColor(reset))
+		}
 		runInteractiveMode(config)
 		return
 	} else {
@@ -421,6 +429,11 @@ func main() {
 		if len(args) >= 2 {
 			model = args[1] // override from command line
 		}
+	}
+
+	// Debug: show which model is being used
+	if config.Debug {
+		fmt.Fprintf(os.Stderr, "%s[DEBUG] Using model: %s%s\n", safeColor(yellow), model, safeColor(reset))
 	}
 
 	// Create client with config
@@ -473,23 +486,27 @@ func main() {
 	// Set up event handler for streaming responses
 	done := make(chan bool)
 	var toolProgressStop func()
+	var streamedContent bool // track if we already streamed content
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				if config.Output.Markdown {
-					content = RenderMarkdown(content)
-				}
+				// Don't render markdown on deltas - just print raw text for streaming
 				fmt.Print(content)
+				streamedContent = true
 			}
 		case "assistant.message":
-			if event.Data.Content != nil {
+			// Only print final message if we didn't stream it already
+			if !streamedContent && event.Data.Content != nil {
 				content := *event.Data.Content
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
 				fmt.Println(content)
+			} else if streamedContent {
+				// Just add a newline after streaming completes
+				fmt.Println()
 			}
 		case "tool.execution_start":
 			// Stop any existing progress indicator
