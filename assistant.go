@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -56,6 +57,15 @@ var (
 	configPath     = flag.String("config", "", "Path to config file")
 	generateConfig = flag.Bool("generate-config", false, "Generate default config file and exit")
 )
+
+// JSONResponse is the structure for JSON output mode
+type JSONResponse struct {
+	Success  bool     `json:"success"`
+	Response string   `json:"response,omitempty"`
+	Error    string   `json:"error,omitempty"`
+	Model    string   `json:"model,omitempty"`
+	Tools    []string `json:"tools_used,omitempty"`
+}
 
 // ErrorInfo holds error information with context
 type ErrorInfo struct {
@@ -161,20 +171,13 @@ func runInteractiveMode(config *Config) {
 	}
 	defer client.Stop()
 
-	// Define the assistant agent using config
-	assistantAgent := copilot.CustomAgentConfig{
-		Name:        "assistant",
-		DisplayName: "Personal Assistant",
-		Description: "A personal assistant for Windows automation tasks",
-		Prompt:      config.SystemPrompt,
-		Infer:       copilot.Bool(true),
-	}
-
-	// Create a session with the assistant agent and custom tools
+	// Create a session with system message and custom tools
 	sessionConfig := &copilot.SessionConfig{
-		Model:        config.Model,
-		CustomAgents: []copilot.CustomAgentConfig{assistantAgent},
-		Streaming:    true,
+		Model:     config.Model,
+		Streaming: true,
+		SystemMessage: &copilot.SystemMessageConfig{
+			Content: config.SystemPrompt,
+		},
 	}
 
 	// Add custom tools if any were loaded
@@ -309,7 +312,7 @@ func runInteractiveMode(config *Config) {
 		}
 
 		// Handle special commands
-		if handled := handleSpecialCommand(input); handled {
+		if handled := handleSpecialCommand(input, config); handled {
 			fmt.Print("You: ")
 			continue
 		}
@@ -365,7 +368,7 @@ func isExitCommand(input string) bool {
 }
 
 // handleSpecialCommand handles special commands like help, clear, etc.
-func handleSpecialCommand(input string) bool {
+func handleSpecialCommand(input string, config *Config) bool {
 	input = strings.ToLower(strings.TrimSpace(input))
 
 	switch input {
@@ -377,7 +380,7 @@ func handleSpecialCommand(input string) bool {
 		fmt.Print("\033[2J\033[1;1H") // ANSI clear screen
 		return true
 	case "config":
-		showCurrentConfig()
+		showCurrentConfig(config)
 		return true
 	default:
 		return false
@@ -395,12 +398,17 @@ func showHelp() {
 	fmt.Println()
 }
 
-// showCurrentConfig displays current configuration (simplified)
-func showCurrentConfig() {
+// showCurrentConfig displays current configuration
+func showCurrentConfig(config *Config) {
 	fmt.Println("\nCurrent configuration:")
-	fmt.Println("  Model: gpt-4.1")
-	fmt.Println("  Debug: disabled")
-	fmt.Println("  Tools: enabled")
+	fmt.Printf("  Model: %s\n", config.Model)
+	fmt.Printf("  Debug: %v\n", config.Debug)
+	fmt.Printf("  Markdown: %v\n", config.Output.Markdown)
+	fmt.Printf("  Spinner: %v\n", config.Output.Spinner)
+	fmt.Printf("  Tools enabled: %v\n", config.Tools.Enabled)
+	if config.Tools.Enabled {
+		fmt.Printf("  Tools directory: %s\n", config.Tools.Directory)
+	}
 	fmt.Println()
 }
 
@@ -457,6 +465,13 @@ func main() {
 		config.Output.Spinner = false
 	} else if *showSpinner {
 		config.Output.Spinner = true
+	}
+
+	// JSON output mode
+	if *jsonOutput {
+		config.Output.JSON = true
+		config.Output.Markdown = false // Disable markdown for clean JSON
+		config.Output.Spinner = false  // Disable spinner for clean JSON
 	}
 
 	// Override config with environment variables
@@ -527,20 +542,13 @@ func main() {
 		handleError(err, "Loading custom tools")
 	}
 
-	// Define the assistant agent using config
-	assistantAgent := copilot.CustomAgentConfig{
-		Name:        "assistant",
-		DisplayName: "Personal Assistant",
-		Description: "A personal assistant for Windows automation tasks",
-		Prompt:      config.SystemPrompt,
-		Infer:       copilot.Bool(true),
-	}
-
-	// Create a session with the assistant agent and custom tools
+	// Create a session with system message and custom tools
 	sessionConfig := &copilot.SessionConfig{
-		Model:        model,
-		CustomAgents: []copilot.CustomAgentConfig{assistantAgent},
-		Streaming:    true,
+		Model:     model,
+		Streaming: true,
+		SystemMessage: &copilot.SystemMessageConfig{
+			Content: config.SystemPrompt,
+		},
 	}
 
 	// Add custom tools if any were loaded
@@ -557,7 +565,9 @@ func main() {
 	// Set up event handler for streaming responses
 	done := make(chan bool)
 	var toolProgressStop func()
-	var fullContent strings.Builder // collect streamed content for markdown rendering
+	var fullContent strings.Builder // collect streamed content
+	var toolsUsed []string          // track tools used for JSON output
+	var sessionError string         // track session errors for JSON output
 	var thinkingIndicator *ProgressIndicator
 	thinkingStopped := false
 
@@ -569,17 +579,29 @@ func main() {
 		}
 	}
 
+	// Helper to output JSON response
+	outputJSON := func(success bool, response, errMsg string) {
+		jsonResp := JSONResponse{
+			Success:  success,
+			Response: response,
+			Error:    errMsg,
+			Model:    model,
+			Tools:    toolsUsed,
+		}
+		jsonBytes, _ := json.Marshal(jsonResp)
+		fmt.Println(string(jsonBytes))
+	}
+
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {
 		case "assistant.message_delta":
 			if event.Data.DeltaContent != nil {
 				content := *event.Data.DeltaContent
-				if config.Output.Markdown {
-					// Collect content for final markdown rendering
-					// Keep spinner running while collecting
+				if config.Output.JSON || config.Output.Markdown {
+					// Collect content for final output
 					fullContent.WriteString(content)
 				} else {
-					// No markdown - stop spinner and print immediately
+					// No markdown/JSON - stop spinner and print immediately
 					stopThinking()
 					fmt.Print(content)
 				}
@@ -587,7 +609,9 @@ func main() {
 		case "assistant.message":
 			// Stop thinking indicator before showing final output
 			stopThinking()
-			if config.Output.Markdown && fullContent.Len() > 0 {
+			if config.Output.JSON {
+				// JSON output handled at session.idle
+			} else if config.Output.Markdown && fullContent.Len() > 0 {
 				// Render collected content as markdown
 				fmt.Println(RenderMarkdown(fullContent.String()))
 			} else if event.Data.Content != nil && fullContent.Len() == 0 {
@@ -604,19 +628,22 @@ func main() {
 		case "tool.execution_start":
 			// Stop thinking indicator before tool execution
 			stopThinking()
-			// Stop any existing progress indicator
-			if toolProgressStop != nil {
-				toolProgressStop()
-			}
-			// Start new progress indicator for tool execution
+			// Track tools used
 			if event.Data.ToolRequests != nil && len(event.Data.ToolRequests) > 0 {
 				toolName := event.Data.ToolRequests[0].Name
-				fmt.Printf("🔧 Executing %s...\n", toolName)
-				toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
+				toolsUsed = append(toolsUsed, toolName)
+				if !config.Output.JSON {
+					// Stop any existing progress indicator
+					if toolProgressStop != nil {
+						toolProgressStop()
+					}
+					fmt.Printf("🔧 Executing %s...\n", toolName)
+					toolProgressStop = ShowToolExecution(toolName, config.Output.Spinner)
+				}
 			}
 		case "tool.execution_complete":
 			// Stop the progress indicator
-			if toolProgressStop != nil {
+			if !config.Output.JSON && toolProgressStop != nil {
 				toolProgressStop()
 				toolProgressStop = nil
 				fmt.Println("✅ Tool execution completed")
@@ -628,6 +655,14 @@ func main() {
 				toolProgressStop()
 				toolProgressStop = nil
 			}
+			// Output JSON if enabled
+			if config.Output.JSON {
+				if sessionError != "" {
+					outputJSON(false, "", sessionError)
+				} else {
+					outputJSON(true, fullContent.String(), "")
+				}
+			}
 			close(done)
 		case "session.error":
 			// Stop any progress indicator on error
@@ -637,14 +672,17 @@ func main() {
 				toolProgressStop = nil
 			}
 			if event.Data.Message != nil {
-				// Show session errors in red with user-friendly formatting
-				fmt.Fprintf(os.Stderr, "%sSession Error: %s%s\n",
-					safeColor(red), getUserFriendlyError(errors.New(*event.Data.Message), "Session"), safeColor(reset))
+				sessionError = *event.Data.Message
+				if !config.Output.JSON {
+					// Show session errors in red with user-friendly formatting
+					fmt.Fprintf(os.Stderr, "%sSession Error: %s%s\n",
+						safeColor(red), getUserFriendlyError(errors.New(*event.Data.Message), "Session"), safeColor(reset))
 
-				// Show debug info if enabled
-				if os.Getenv("ASSISTANT_DEBUG") == "1" {
-					fmt.Fprintf(os.Stderr, "%s[DEBUG] Raw session error: %s%s\n",
-						safeColor(yellow), *event.Data.Message, safeColor(reset))
+					// Show debug info if enabled
+					if os.Getenv("ASSISTANT_DEBUG") == "1" {
+						fmt.Fprintf(os.Stderr, "%s[DEBUG] Raw session error: %s%s\n",
+							safeColor(yellow), *event.Data.Message, safeColor(reset))
+					}
 				}
 			}
 			close(done)

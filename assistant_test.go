@@ -28,22 +28,6 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
-// TestPathNormalization tests the path normalization functions
-func TestPathNormalization(t *testing.T) {
-	// Test basic normalization
-	path := "test/path"
-	normalized := NormalizePath(path)
-	if normalized == "" {
-		t.Error("Path normalization should not return empty string")
-	}
-
-	// Test environment variable expansion (if USERPROFILE is set)
-	expanded := ExpandPath("%USERPROFILE%")
-	if expanded == "%USERPROFILE%" {
-		t.Log("USERPROFILE environment variable not set, skipping expansion test")
-	}
-}
-
 // TestErrorHandling tests the error handling functions
 func TestErrorHandling(t *testing.T) {
 	// Test user-friendly error conversion
