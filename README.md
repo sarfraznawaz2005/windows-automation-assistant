@@ -329,7 +329,7 @@ go test -v -run TestConfigValidation
 
 ## Dependencies
 
-- [github.com/github/copilot-sdk/go](https://github.com/github/copilot-sdk) - GitHub Copilot SDK
+- [github.com/github/copilot-sdk](https://github.com/github/copilot-sdk) - GitHub Copilot SDK
 - [github.com/briandowns/spinner](https://github.com/briandowns/spinner) - Terminal spinner
 - [github.com/charmbracelet/glamour](https://github.com/charmbracelet/glamour) - Markdown rendering
 - [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) - YAML parsing
