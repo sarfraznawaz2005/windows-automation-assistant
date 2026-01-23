@@ -16,8 +16,12 @@ import (
 // runInteractiveMode starts the interactive conversation loop
 func runInteractiveMode(config *Config) {
 	fmt.Println("Windows Automation Assistant (Interactive Mode)")
-	fmt.Println("Type 'exit', 'quit', or 'bye' to end the session")
-	fmt.Println("Type 'help' for available commands")
+	fmt.Printf("Type %s'exit'%s, %s'quit'%s, or %s'bye'%s to end the session\n",
+		safeColor(colorCyan), safeColor(colorReset),
+		safeColor(colorCyan), safeColor(colorReset),
+		safeColor(colorCyan), safeColor(colorReset))
+	fmt.Printf("Type %s'help'%s for available commands\n",
+		safeColor(colorCyan), safeColor(colorReset))
 	fmt.Println()
 
 	// Create client
@@ -86,6 +90,7 @@ func runInteractiveMode(config *Config) {
 		thinkingIndicator *ProgressIndicator
 		thinkingStopped   bool
 		streamedContent   bool       // track if we've already streamed content
+		assistantPrinted  bool       // track if "Assistant:" prefix has been printed
 		mu                sync.Mutex // protect shared state
 	)
 	fullContent.Grow(4096) // Pre-allocate 4KB for typical responses
@@ -140,6 +145,11 @@ func runInteractiveMode(config *Config) {
 					// Only print if content is not empty (skip empty deltas)
 					if content != "" {
 						stopThinking()
+						// Print "Assistant: " prefix before first content
+						if !assistantPrinted {
+							fmt.Printf("%sAssistant:%s ", safeColor(colorGreen), safeColor(colorReset))
+							assistantPrinted = true
+						}
 						fmt.Print(content)
 						streamedContent = true
 					}
@@ -155,7 +165,7 @@ func runInteractiveMode(config *Config) {
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
-				fmt.Println(content)
+				fmt.Printf("%sAssistant:%s %s\n", safeColor(colorGreen), safeColor(colorReset), content)
 			} else if streamedContent {
 				// Streaming mode completed - just add newline
 				stopThinking()
@@ -167,7 +177,7 @@ func runInteractiveMode(config *Config) {
 				if config.Output.Markdown {
 					content = RenderMarkdown(content)
 				}
-				fmt.Println(content)
+				fmt.Printf("%sAssistant:%s %s\n", safeColor(colorGreen), safeColor(colorReset), content)
 			}
 			// If none of the above, keep thinking indicator running
 		case "tool.execution_start":
@@ -227,7 +237,7 @@ func runInteractiveMode(config *Config) {
 
 	// Interactive conversation loop
 	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("You: ")
+	fmt.Printf("%sYou:%s ", safeColor(colorYellow), safeColor(colorReset))
 
 	for scanner.Scan() {
 		input := strings.TrimSpace(scanner.Text())
@@ -240,13 +250,13 @@ func runInteractiveMode(config *Config) {
 
 		// Handle special commands
 		if handled := handleSpecialCommand(input, config); handled {
-			fmt.Print("You: ")
+			fmt.Printf("%sYou:%s ", safeColor(colorYellow), safeColor(colorReset))
 			continue
 		}
 
 		// Skip empty input
 		if input == "" {
-			fmt.Print("You: ")
+			fmt.Printf("%sYou:%s ", safeColor(colorYellow), safeColor(colorReset))
 			continue
 		}
 
@@ -256,6 +266,7 @@ func runInteractiveMode(config *Config) {
 		fullContent.Reset()
 		thinkingStopped = false
 		streamedContent = false
+		assistantPrinted = false
 		thinkingIndicator = NewProgressIndicator("Thinking...", config.Output.Spinner)
 		thinkingIndicator.Start()
 		currentDone := done
@@ -274,14 +285,14 @@ func runInteractiveMode(config *Config) {
 			}
 			mu.Unlock()
 			fmt.Fprintf(os.Stderr, "%sError: %s%s\n", safeColor(colorRed), getUserFriendlyError(err, "Processing message"), safeColor(colorReset))
-			fmt.Print("You: ")
+			fmt.Printf("%sYou:%s ", safeColor(colorYellow), safeColor(colorReset))
 			continue
 		}
 
 		// Wait for completion
 		<-currentDone
 
-		fmt.Print("You: ")
+		fmt.Printf("%sYou:%s ", safeColor(colorYellow), safeColor(colorReset))
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -317,11 +328,13 @@ func handleSpecialCommand(input string, config *Config) bool {
 
 // showHelp displays available commands
 func showHelp() {
+	cyan := safeColor(colorCyan)
+	reset := safeColor(colorReset)
 	fmt.Println("\nAvailable commands:")
-	fmt.Println("  help, h, ?     Show this help message")
-	fmt.Println("  clear, cls     Clear the screen")
-	fmt.Println("  config         Show current configuration")
-	fmt.Println("  exit, quit, bye, q    Exit interactive mode")
+	fmt.Printf("  %shelp%s, %sh%s, %s?%s     Show this help message\n", cyan, reset, cyan, reset, cyan, reset)
+	fmt.Printf("  %sclear%s, %scls%s     Clear the screen\n", cyan, reset, cyan, reset)
+	fmt.Printf("  %sconfig%s         Show current configuration\n", cyan, reset)
+	fmt.Printf("  %sexit%s, %squit%s, %sbye%s, %sq%s    Exit interactive mode\n", cyan, reset, cyan, reset, cyan, reset, cyan, reset)
 	fmt.Println("\nJust type your automation request and press Enter!")
 	fmt.Println()
 }

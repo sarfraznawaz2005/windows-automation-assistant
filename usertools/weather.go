@@ -1,4 +1,6 @@
 // Weather tool - fetches real weather data from wttr.in API
+// This tool demonstrates lazy loading - the HTTP client and handler
+// are only initialized when the tool is first called.
 package usertools
 
 import (
@@ -7,22 +9,10 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	copilot "github.com/github/copilot-sdk/go"
 )
 
-// Shared HTTP client with connection pooling for better performance
-var httpClient = &http.Client{
-	Timeout: 10 * time.Second,
-	Transport: &http.Transport{
-		MaxIdleConns:        10,
-		MaxIdleConnsPerHost: 5,
-		IdleConnTimeout:     90 * time.Second,
-	},
-}
-
 func init() {
-	Register(Tool{
+	RegisterLazy(ToolDefinition{
 		Name:        "weather",
 		Description: "Get current weather for a city. If no city is provided, auto-detects location based on IP.",
 		Parameters: map[string]interface{}{
@@ -34,8 +24,25 @@ func init() {
 				},
 			},
 		},
-		Handler: weatherHandler,
+		Loader: loadWeatherHandler,
 	})
+}
+
+// Shared HTTP client - only created when handler is first loaded
+var weatherHTTPClient *http.Client
+
+// loadWeatherHandler initializes the weather tool and returns the handler
+func loadWeatherHandler() ToolHandler {
+	// Initialize HTTP client with connection pooling
+	weatherHTTPClient = &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 5,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+	return weatherHandler
 }
 
 // weatherParams defines the parameters for the weather tool
@@ -80,17 +87,17 @@ type wttrValueField struct {
 }
 
 // weatherHandler implements the weather tool functionality
-func weatherHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
+func weatherHandler(invocation ToolInvocation) (ToolResult, error) {
 	// Parse parameters
 	var params weatherParams
 	if err := MapToStruct(invocation.Arguments, &params); err != nil {
-		return copilot.ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
+		return ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
 	}
 
 	// Fetch real weather data from wttr.in
 	result, err := fetchWeather(params.City)
 	if err != nil {
-		return copilot.ToolResult{
+		return ToolResult{
 			TextResultForLLM: fmt.Sprintf("Failed to get weather: %v", err),
 			ResultType:       "error",
 			SessionLog:       fmt.Sprintf("Weather API error: %v", err),
@@ -111,7 +118,7 @@ func weatherHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, erro
 		logMsg = fmt.Sprintf("Retrieved weather for %s (auto-detected)", locationStr)
 	}
 
-	return copilot.ToolResult{
+	return ToolResult{
 		TextResultForLLM: textResult,
 		ResultType:       "success",
 		SessionLog:       logMsg,
@@ -127,8 +134,8 @@ func fetchWeather(city string) (weatherResult, error) {
 	}
 	url += "?format=j1"
 
-	// Make the request using shared HTTP client
-	resp, err := httpClient.Get(url)
+	// Make the request using the lazily-initialized HTTP client
+	resp, err := weatherHTTPClient.Get(url)
 	if err != nil {
 		return weatherResult{}, fmt.Errorf("failed to fetch weather: %w", err)
 	}

@@ -1,15 +1,13 @@
 // Sum tool - adds two numbers together
-// This is an example tool demonstrating the usertools architecture.
+// This is an example tool demonstrating the lazy loading usertools architecture.
 package usertools
 
 import (
 	"fmt"
-
-	copilot "github.com/github/copilot-sdk/go"
 )
 
 func init() {
-	Register(Tool{
+	RegisterLazy(ToolDefinition{
 		Name:        "sum",
 		Description: "Adds two numbers together and returns the result",
 		Parameters: map[string]interface{}{
@@ -26,7 +24,10 @@ func init() {
 			},
 			"required": []string{"a", "b"},
 		},
-		Handler: sumHandler,
+		Loader: func() ToolHandler {
+			// No expensive initialization needed for this simple tool
+			return sumHandler
+		},
 	})
 }
 
@@ -37,11 +38,11 @@ type sumParams struct {
 }
 
 // sumHandler implements the sum tool functionality
-func sumHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
+func sumHandler(invocation ToolInvocation) (ToolResult, error) {
 	// Parse parameters
 	var params sumParams
 	if err := MapToStruct(invocation.Arguments, &params); err != nil {
-		return copilot.ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
+		return ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
 	}
 
 	// Perform the calculation
@@ -50,7 +51,7 @@ func sumHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
 	// Format the result for the LLM
 	textResult := fmt.Sprintf("The sum of %v and %v is %v", params.A, params.B, result)
 
-	return copilot.ToolResult{
+	return ToolResult{
 		TextResultForLLM: textResult,
 		ResultType:       "success",
 		SessionLog:       fmt.Sprintf("Calculated: %v + %v = %v", params.A, params.B, result),

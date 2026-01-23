@@ -296,8 +296,8 @@ func TestUsertoolsRegistry(t *testing.T) {
 	if weather == nil {
 		t.Error("weather tool should be registered")
 	}
-	if weather != nil && weather.Name != "weather" {
-		t.Errorf("Expected tool name 'weather', got '%s'", weather.Name)
+	if weather != nil && weather.Definition.Name != "weather" {
+		t.Errorf("Expected tool name 'weather', got '%s'", weather.Definition.Name)
 	}
 
 	sum := usertools.Get("sum")
@@ -321,6 +321,51 @@ func TestUsertoolsRegistry(t *testing.T) {
 	count := usertools.Count()
 	if count < 2 {
 		t.Errorf("Expected at least 2 tools, got %d", count)
+	}
+
+	// Test Stats function (new in lazy loading)
+	loaded, useCount, _ := usertools.Stats("weather")
+	if loaded {
+		t.Error("weather tool handler should not be loaded before first use")
+	}
+	if useCount != 0 {
+		t.Errorf("Expected use count 0, got %d", useCount)
+	}
+}
+
+// TestLazyToolLoading tests that tools are lazily loaded
+func TestLazyToolLoading(t *testing.T) {
+	// Get tools - this should NOT load handlers
+	tools := usertools.GetAll()
+	if len(tools) == 0 {
+		t.Fatal("No tools registered")
+	}
+
+	// Find the sum tool
+	var sumTool *usertools.LazyTool
+	for _, tool := range tools {
+		if tool.Name == "sum" {
+			sumTool = usertools.Get("sum")
+			break
+		}
+	}
+	if sumTool == nil {
+		t.Fatal("sum tool not found")
+	}
+
+	// Initially, the handler should NOT be loaded
+	loaded, _, _ := usertools.Stats("sum")
+	if loaded {
+		t.Error("sum handler should not be loaded before first invocation")
+	}
+
+	// Force unload all to ensure clean state
+	usertools.ForceUnloadAll()
+
+	// Verify unloaded
+	loaded, _, _ = usertools.Stats("sum")
+	if loaded {
+		t.Error("sum handler should be unloaded after ForceUnloadAll")
 	}
 }
 

@@ -144,7 +144,13 @@ On error:
 
 ## Custom Tools
 
-Custom tools are Go files in the `usertools/` package. Each tool is self-contained with its definition and handler in a single file. Tools are automatically registered at startup via Go's `init()` mechanism.
+Custom tools are Go files in the `usertools/` package. Each tool is self-contained with its definition and handler in a single file. Tools use **lazy loading** - handlers are only initialized when first called and automatically unloaded after 5 minutes of inactivity.
+
+### Benefits of Lazy Loading
+
+- **Faster startup**: Tool handlers don't add to assistant startup time
+- **Memory efficient**: Unused tool handlers are automatically unloaded
+- **Scalable**: Add many tools without impacting performance
 
 ### Built-in Tools
 
@@ -166,11 +172,10 @@ package usertools
 
 import (
     "fmt"
-    copilot "github.com/github/copilot-sdk/go"
 )
 
 func init() {
-    Register(Tool{
+    RegisterLazy(ToolDefinition{
         Name:        "mytool",
         Description: "Description of what your tool does",
         Parameters: map[string]interface{}{
@@ -187,7 +192,12 @@ func init() {
             },
             "required": []string{"param1"},
         },
-        Handler: myToolHandler,
+        Loader: func() ToolHandler {
+            // Any expensive initialization goes here
+            // (database connections, loading models, etc.)
+            // This only runs when the tool is first called!
+            return myToolHandler
+        },
     })
 }
 
@@ -198,17 +208,17 @@ type myToolParams struct {
 }
 
 // Implement the handler function
-func myToolHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
+func myToolHandler(invocation ToolInvocation) (ToolResult, error) {
     // Parse parameters
     var params myToolParams
     if err := MapToStruct(invocation.Arguments, &params); err != nil {
-        return copilot.ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
+        return ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
     }
 
     // Your tool logic here
     result := fmt.Sprintf("Processed: %s with value %v", params.Param1, params.Param2)
 
-    return copilot.ToolResult{
+    return ToolResult{
         TextResultForLLM: result,
         ResultType:       "success",
         SessionLog:       "Tool executed successfully",
@@ -219,7 +229,7 @@ func myToolHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error
 #### Step 2: Rebuild the Project
 
 ```bash
-go build -o assistant.exe .
+go build -o assistant.exe *.go
 ```
 
 #### Step 3: Test Your Tool
@@ -237,11 +247,10 @@ package usertools
 
 import (
     "fmt"
-    copilot "github.com/github/copilot-sdk/go"
 )
 
 func init() {
-    Register(Tool{
+    RegisterLazy(ToolDefinition{
         Name:        "sum",
         Description: "Adds two numbers together and returns the result",
         Parameters: map[string]interface{}{
@@ -258,7 +267,10 @@ func init() {
             },
             "required": []string{"a", "b"},
         },
-        Handler: sumHandler,
+        Loader: func() ToolHandler {
+            // No expensive initialization needed for this simple tool
+            return sumHandler
+        },
     })
 }
 
@@ -267,16 +279,16 @@ type sumParams struct {
     B float64 `json:"b"`
 }
 
-func sumHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
+func sumHandler(invocation ToolInvocation) (ToolResult, error) {
     var params sumParams
     if err := MapToStruct(invocation.Arguments, &params); err != nil {
-        return copilot.ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
+        return ToolResult{}, fmt.Errorf("invalid parameters: %w", err)
     }
 
     result := params.A + params.B
     textResult := fmt.Sprintf("The sum of %v and %v is %v", params.A, params.B, result)
 
-    return copilot.ToolResult{
+    return ToolResult{
         TextResultForLLM: textResult,
         ResultType:       "success",
         SessionLog:       fmt.Sprintf("Calculated: %v + %v = %v", params.A, params.B, result),
@@ -284,14 +296,14 @@ func sumHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
 }
 ```
 
-### Tool Structure Reference
+### Tool Definition Reference
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `Name` | string | Unique tool identifier (used by the LLM to call the tool) |
 | `Description` | string | What the tool does (helps the LLM decide when to use it) |
 | `Parameters` | map | JSON Schema defining the tool's input parameters |
-| `Handler` | function | The function that executes when the tool is called |
+| `Loader` | function | Returns the handler function; called only on first tool use |
 
 ### ToolResult Fields
 
@@ -306,11 +318,39 @@ func sumHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, error) {
 The `usertools` package provides helper functions:
 
 - `MapToStruct(data, target)` - Converts map arguments to a typed struct
-- `Register(tool)` - Registers a tool (call in `init()`)
+- `RegisterLazy(def)` - Registers a tool with lazy loading (call in `init()`)
 - `Get(name)` - Get a tool by name
-- `GetAll()` - Get all registered tools
+- `GetAll()` - Get all registered tools as `copilot.Tool` slice
 - `List()` - Get names of all registered tools
 - `Count()` - Get number of registered tools
+- `Stats(name)` - Get usage statistics (loaded, useCount, lastUsed)
+- `ForceUnload(name)` - Manually unload a specific tool's handler
+- `ForceUnloadAll()` - Unload all tool handlers
+
+### Type Aliases
+
+For convenience, the `usertools` package provides type aliases so you don't need to import the Copilot SDK directly:
+
+```go
+type ToolHandler = copilot.ToolHandler
+type ToolInvocation = copilot.ToolInvocation
+type ToolResult = copilot.ToolResult
+```
+
+### Auto-Unload Configuration
+
+Handlers are automatically unloaded after 5 minutes of inactivity. To customize:
+
+```go
+// In your tool file or main.go
+import "windows-assistant/usertools"
+
+func init() {
+    usertools.UnloadTimeout = 10 * time.Minute  // Change timeout
+    // or
+    usertools.UnloadTimeout = 0  // Disable auto-unload
+}
+```
 
 ## Testing
 

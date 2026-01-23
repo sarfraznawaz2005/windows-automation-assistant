@@ -9,8 +9,10 @@ import (
 // ANSI color codes for terminal output
 const (
 	colorRed    = "\033[31m"
-	colorReset  = "\033[0m"
+	colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
+	colorReset  = "\033[0m"
 )
 
 // JSONResponse is the structure for JSON output mode
