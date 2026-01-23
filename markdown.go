@@ -32,56 +32,6 @@ func (r *MarkdownRenderer) RenderToTerminal(markdown string) (string, error) {
 	return r.renderer.Render(markdown)
 }
 
-// IsMarkdown checks if text contains markdown syntax
-func IsMarkdown(text string) bool {
-	// Check for common markdown patterns
-	markdownPatterns := []string{
-		"**", "*", "_", "`", "# ", "## ", "### ", "#### ", "##### ", "###### ",
-		"- ", "* ", "+ ", "1. ", "2. ", "3. ", "[",
-		"```", "~~~", ">", "|", "---", "___", "***",
-	}
-
-	for _, pattern := range markdownPatterns {
-		if contains(text, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-// FormatAssistantResponse formats the assistant response with markdown if appropriate
-func FormatAssistantResponse(response string, useMarkdown bool) string {
-	if !useMarkdown {
-		return response
-	}
-
-	// Check if response contains markdown
-	if !IsMarkdown(response) {
-		return response
-	}
-
-	// Convert to terminal-formatted text using glamour
-	renderer := NewMarkdownRenderer()
-	formatted, err := renderer.RenderToTerminal(response)
-	if err != nil {
-		// Fallback to original response if conversion fails
-		return response
-	}
-
-	return formatted
-}
-
 // Global markdown renderer instance
 var globalMarkdownRenderer *MarkdownRenderer
 

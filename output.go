@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"runtime"
 )
 
 // ANSI color codes for terminal output
@@ -23,27 +22,9 @@ type JSONResponse struct {
 	Tools    []string `json:"tools_used,omitempty"`
 }
 
-// supportsANSI checks if the terminal supports ANSI colors
-func supportsANSI() bool {
-	// On Windows, check if we're in Windows Terminal or similar
-	if runtime.GOOS == "windows" {
-		term := os.Getenv("TERM")
-		wtSession := os.Getenv("WT_SESSION") // Windows Terminal
-		if term == "xterm-256color" || wtSession != "" {
-			return true
-		}
-		// For cmd.exe, ANSI might not work, but let's try anyway
-		return true
-	}
-	return true // Assume ANSI support on Unix-like systems
-}
-
-// safeColor returns color code if supported, otherwise empty string
+// safeColor returns color code (ANSI is widely supported on modern terminals)
 func safeColor(color string) string {
-	if supportsANSI() {
-		return color
-	}
-	return ""
+	return color
 }
 
 // outputJSON outputs a JSON response to stdout
@@ -55,6 +36,10 @@ func outputJSON(success bool, response, errMsg, model string, toolsUsed []string
 		Model:    model,
 		Tools:    toolsUsed,
 	}
-	jsonBytes, _ := json.Marshal(jsonResp)
+	jsonBytes, err := json.Marshal(jsonResp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to marshal JSON response: %v\n", err)
+		os.Exit(1)
+	}
 	fmt.Println(string(jsonBytes))
 }

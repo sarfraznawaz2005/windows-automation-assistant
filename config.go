@@ -136,22 +136,17 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig saves the configuration to a file
 func SaveConfig(config *Config, configPath string) error {
-	// If no path specified, use default
+	// If no path specified, use current directory
 	if configPath == "" {
-		configPath = findConfigFile()
-		if configPath == "" {
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				return fmt.Errorf("cannot determine home directory: %w", err)
-			}
-			configPath = filepath.Join(homeDir, ".config.yaml")
-		}
+		configPath = "config.yaml"
 	}
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(configPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create config directory: %w", err)
+		}
 	}
 
 	// Marshal to YAML
@@ -169,6 +164,8 @@ func SaveConfig(config *Config, configPath string) error {
 }
 
 // findConfigFile looks for config file in standard locations
+// Priority: 1. ./config.yaml (current directory)
+//  2. ~/.assistant-config.yaml (home directory)
 func findConfigFile() string {
 	// Check current directory first
 	if _, err := os.Stat("config.yaml"); err == nil {
@@ -178,7 +175,7 @@ func findConfigFile() string {
 	// Check home directory
 	homeDir, err := os.UserHomeDir()
 	if err == nil {
-		homeConfig := filepath.Join(homeDir, ".config.yaml")
+		homeConfig := filepath.Join(homeDir, ".assistant-config.yaml")
 		if _, err := os.Stat(homeConfig); err == nil {
 			return homeConfig
 		}

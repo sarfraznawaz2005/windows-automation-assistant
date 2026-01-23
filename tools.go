@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
-	"time"
 
 	copilot "github.com/github/copilot-sdk/go"
 	"gopkg.in/yaml.v3"
@@ -170,9 +170,7 @@ func weatherToolHandler(invocation copilot.ToolInvocation) (copilot.ToolResult, 
 
 // generateMockWeather creates mock weather data
 func generateMockWeather(city string) WeatherResult {
-	// Seed random generator for consistent results per city
-	rand.Seed(time.Now().UnixNano() + int64(len(city)))
-
+	// Go 1.20+ automatically seeds the global random source
 	conditions := []string{"Sunny", "Cloudy", "Partly Cloudy", "Rainy", "Overcast"}
 	// Temperatures in Celsius (roughly equivalent to previous Fahrenheit range)
 	temperatures := []float64{18, 21, 24, 27, 29, 16, 13}
@@ -185,21 +183,16 @@ func generateMockWeather(city string) WeatherResult {
 	}
 }
 
-// mapToStruct is a helper to convert map to struct (simplified implementation)
+// mapToStruct converts a map to a struct using JSON marshaling
 func mapToStruct(data interface{}, target interface{}) error {
-	// This is a simplified implementation. In production, you'd use a proper
-	// JSON marshaling/unmarshaling or reflection-based solution
-	if m, ok := data.(map[string]interface{}); ok {
-		if city, exists := m["city"]; exists {
-			if cityStr, ok := city.(string); ok {
-				if params, ok := target.(*WeatherParams); ok {
-					params.City = cityStr
-					return nil
-				}
-			}
-		}
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal data: %w", err)
 	}
-	return fmt.Errorf("unable to parse parameters")
+	if err := json.Unmarshal(jsonBytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal to target: %w", err)
+	}
+	return nil
 }
 
 // createToolHandler creates a tool handler function based on the handler name

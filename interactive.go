@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	copilot "github.com/github/copilot-sdk/go"
 )
@@ -74,6 +76,26 @@ func runInteractiveMode(config *Config) {
 			thinkingStopped = true
 		}
 	}
+
+	// Cleanup function for graceful shutdown
+	cleanup := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		stopThinking()
+		if toolProgressStop != nil {
+			toolProgressStop()
+		}
+	}
+
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		cleanup()
+		fmt.Println("\nGoodbye!")
+		os.Exit(0)
+	}()
 
 	// Set up event handler ONCE for the entire session
 	session.On(func(event copilot.SessionEvent) {

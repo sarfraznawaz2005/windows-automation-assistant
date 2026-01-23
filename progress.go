@@ -38,15 +38,6 @@ func (p *ProgressIndicator) Stop() {
 	}
 }
 
-// ShowProgress is a convenience function for quick progress indication
-func ShowProgress(message string, enabled bool, operation func() error) error {
-	indicator := NewProgressIndicator(message, enabled)
-	indicator.Start()
-	defer indicator.Stop()
-
-	return operation()
-}
-
 // ShowToolExecution shows progress during tool execution
 func ShowToolExecution(toolName string, enabled bool) func() {
 	indicator := NewProgressIndicator("Executing "+toolName+"...", enabled)

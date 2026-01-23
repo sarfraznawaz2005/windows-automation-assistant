@@ -4,13 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	copilot "github.com/github/copilot-sdk/go"
 )
 
 // runSingleCommand executes a single prompt and exits
 func runSingleCommand(config *Config, prompt, model string) {
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 	// Create client with config
 	client := copilot.NewClient(&copilot.ClientOptions{
 		LogLevel:    config.ClientOptions.LogLevel,
@@ -67,6 +73,22 @@ func runSingleCommand(config *Config, prompt, model string) {
 			thinkingStopped = true
 		}
 	}
+
+	// Cleanup function for graceful shutdown
+	cleanup := func() {
+		stopThinking()
+		if toolProgressStop != nil {
+			toolProgressStop()
+		}
+	}
+
+	// Handle interrupt signal in a goroutine
+	go func() {
+		<-sigChan
+		cleanup()
+		fmt.Println("\nInterrupted. Exiting...")
+		os.Exit(0)
+	}()
 
 	session.On(func(event copilot.SessionEvent) {
 		switch event.Type {

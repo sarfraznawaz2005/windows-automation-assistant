@@ -4,7 +4,52 @@ This document provides guidelines and commands for agentic coding assistants wor
 
 NOTE: This project uses CopilotSdk: https://github.com/github/copilot-sdk
 
-## 🚀 Build, Lint, and Test Commands
+## MANDATORY: Build and Test After Every Change
+
+**AI agents MUST always build and run tests after making any code changes to ensure the project remains in a working state.**
+
+### Required Workflow
+
+After making ANY code changes (editing, adding, or deleting code), execute:
+
+```bash
+# ALWAYS run this after making changes
+go build -o assistant.exe *.go && go test -v
+```
+
+### Verification Checklist
+
+Before considering a task complete, verify:
+1. **Build succeeds**: `go build -o assistant.exe *.go` exits with code 0
+2. **All tests pass**: `go test -v` shows all tests PASS
+3. **No regressions**: Existing functionality still works
+
+### If Build or Tests Fail
+
+1. **DO NOT** move on to other tasks
+2. **FIX** the failing build/tests immediately
+3. **RE-RUN** the build and tests until they pass
+4. Only then proceed with additional changes
+
+### Quick Command Reference
+
+```bash
+# Build only
+go build -o assistant.exe *.go
+
+# Test only
+go test -v
+
+# Build AND test (preferred - use this!)
+go build -o assistant.exe *.go && go test -v
+
+# Test with coverage
+go test -v -cover
+```
+
+---
+
+## Build, Lint, and Test Commands
 
 ### Building the Assistant
 
@@ -19,10 +64,10 @@ go build -v -o assistant.exe *.go
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (47 tests)
 go test -v
 
-# Run tests with coverage
+# Run tests with coverage (~32% statement coverage)
 go test -v -cover
 
 # Run tests with race detection
@@ -36,7 +81,7 @@ go test -v ./...
 
 # Run tests with verbose coverage profile
 go test -v -coverprofile=coverage.out
-go tool cover -html=coverage.out
+go tool cover -func=coverage.out
 ```
 
 ### Linting and Code Quality
@@ -71,22 +116,24 @@ go mod verify
 go clean -modcache
 ```
 
-## 📁 File Structure
+## File Structure
 
 ```
 windows-automation-assistant/
-├── main.go              # Entry point (~30 lines)
-├── cli.go               # CLI flags, usage, argument parsing (~130 lines)
-├── config.go            # Configuration management (~214 lines)
-├── errors.go            # Error handling utilities (~80 lines)
-├── output.go            # Colors, JSON response, output helpers (~60 lines)
-├── interactive.go       # Interactive mode conversation loop (~280 lines)
-├── session.go           # Single command session execution (~175 lines)
-├── progress.go          # Progress/spinner indicators (~57 lines)
-├── markdown.go          # Markdown rendering with glamour (~25 lines)
-├── tools.go             # Custom tools framework (~214 lines)
-├── assistant_test.go    # Unit tests
+├── main.go              # Entry point (~31 lines)
+├── cli.go               # CLI flags, usage, argument parsing (~133 lines)
+├── config.go            # Configuration management (~210 lines)
+├── errors.go            # Error handling utilities (~63 lines)
+├── output.go            # Colors, JSON response, output helpers (~45 lines)
+├── interactive.go       # Interactive mode conversation loop (~301 lines)
+├── session.go           # Single command session execution (~205 lines)
+├── progress.go          # Progress/spinner indicators (~49 lines)
+├── markdown.go          # Markdown rendering with glamour (~50 lines)
+├── tools.go             # Custom tools framework (~206 lines)
+├── assistant_test.go    # Comprehensive unit tests (~901 lines, 47 tests)
 ├── config.yaml          # Default configuration (auto-created)
+├── AGENTS.md            # This file - guidelines for AI agents
+├── README.md            # Project documentation
 └── user-tools/          # Directory for custom tool definitions
     └── weather.yaml     # Example weather tool
 ```
@@ -100,13 +147,35 @@ windows-automation-assistant/
 | `config.go` | Config struct, loading, saving, validation, defaults |
 | `errors.go` | Error handling, user-friendly error messages, debug output |
 | `output.go` | ANSI colors, JSON response struct, terminal output helpers |
-| `interactive.go` | Multi-turn conversation loop, special commands (help, config, clear) |
-| `session.go` | Single-shot prompt execution with streaming support |
+| `interactive.go` | Multi-turn conversation loop, special commands (help, config, clear), signal handling |
+| `session.go` | Single-shot prompt execution with streaming support, signal handling |
 | `progress.go` | Spinner/progress indicator using briandowns/spinner |
 | `markdown.go` | Markdown rendering using charmbracelet/glamour |
-| `tools.go` | Custom tool loading from YAML, tool handler registry |
+| `tools.go` | Custom tool loading from YAML, tool handler registry, weather tool implementation |
+| `assistant_test.go` | Comprehensive unit tests for all modules |
 
-## 🎮 CLI Usage
+## Test Coverage Summary
+
+The project has **47 tests** with **~32% statement coverage**.
+
+### Fully Covered Functions (100%):
+- `isInteractiveMode`, `DefaultConfig`, `boolPtr`, `ValidateConfig`
+- `getUserFriendlyError`, `isExitCommand`, `handleSpecialCommand`
+- `showHelp`, `showCurrentConfig`, `RenderToTerminal`, `safeColor`
+- `NewProgressIndicator`, `Start`, `ShowToolExecution`
+- `validateToolDefinition`, `isToolEnabled`, `weatherToolHandler`
+- `generateMockWeather`, `createToolHandler`
+
+### Well Covered Functions (75-87%):
+- `LoadConfig`, `SaveConfig`, `findConfigFile`
+- `loadCustomTools`, `loadToolFromFile`, `mapToStruct`
+- `NewMarkdownRenderer`, `RenderMarkdown`
+
+### Not Tested (Integration/Runtime):
+- `main`, `runSingleCommand`, `runInteractiveMode` - Require Copilot SDK client
+- `parseFlags`, `handleError`, `outputJSON` - CLI entry points / os.Exit calls
+
+## CLI Usage
 
 ```bash
 # Single command mode
@@ -173,7 +242,7 @@ On error:
 | `config` | Show current configuration |
 | `exit`, `quit`, `bye`, `q` | Exit interactive mode |
 
-## 📋 Code Style Guidelines
+## Code Style Guidelines
 
 ### General Principles
 
@@ -196,9 +265,11 @@ import (
     "flag"
     "fmt"
     "os"
+    "os/signal"
     "runtime"
     "strings"
     "sync"
+    "syscall"
 
     // Third-party imports (alphabetically sorted)
     "github.com/briandowns/spinner"
@@ -296,9 +367,10 @@ var (
 ### Testing Guidelines
 
 #### Test File Organization
-- Tests go in `*_test.go` files in the same package
+- Tests go in `assistant_test.go` (single test file for this project)
 - Test functions start with `Test`
 - Use descriptive test names
+- Group related tests with comments (e.g., `// ============ CONFIG.GO TESTS ============`)
 
 #### Test Structure
 ```go
@@ -392,11 +464,12 @@ test: add unit tests for error handling
 
 ---
 
-## 🎯 Quick Reference
+## Quick Reference
 
 **Build & Test:**
 - `go build -o assistant.exe *.go` - Build the project
-- `go test -v` - Run all tests
+- `go test -v` - Run all tests (47 tests)
+- `go test -v -cover` - Run tests with coverage (~32%)
 - `go test -v -run TestName` - Run specific test
 - `golangci-lint run` - Lint the code
 - `assistant.exe --help` - Show help
@@ -423,3 +496,4 @@ test: add unit tests for error handling
 - `interactive.go` - Modify interactive mode behavior
 - `session.go` - Modify single command behavior
 - `tools.go` - Add new custom tool handlers
+- `assistant_test.go` - Add new tests here

@@ -7,39 +7,10 @@ import (
 	"strings"
 )
 
-// ErrorInfo holds error information with context
-type ErrorInfo struct {
-	Message  string
-	File     string
-	Line     int
-	Function string
-}
-
 // handleError gracefully handles errors with user-friendly output
 func handleError(err error, context string) {
 	if err == nil {
 		return
-	}
-
-	// Get caller information
-	pc, file, line, ok := runtime.Caller(1)
-	funcName := "unknown"
-	if ok {
-		funcName = runtime.FuncForPC(pc).Name()
-		// Extract just the function name
-		if lastSlash := strings.LastIndex(funcName, "/"); lastSlash >= 0 {
-			funcName = funcName[lastSlash+1:]
-		}
-		if lastDot := strings.LastIndex(funcName, "."); lastDot >= 0 {
-			funcName = funcName[lastDot+1:]
-		}
-	}
-
-	errorInfo := ErrorInfo{
-		Message:  err.Error(),
-		File:     file,
-		Line:     line,
-		Function: funcName,
 	}
 
 	// Show user-friendly error message
@@ -47,8 +18,20 @@ func handleError(err error, context string) {
 
 	// Show detailed error info for debugging (only in verbose mode or for developers)
 	if os.Getenv("ASSISTANT_DEBUG") == "1" {
+		pc, file, line, ok := runtime.Caller(1)
+		funcName := "unknown"
+		if ok {
+			funcName = runtime.FuncForPC(pc).Name()
+			// Extract just the function name
+			if lastSlash := strings.LastIndex(funcName, "/"); lastSlash >= 0 {
+				funcName = funcName[lastSlash+1:]
+			}
+			if lastDot := strings.LastIndex(funcName, "."); lastDot >= 0 {
+				funcName = funcName[lastDot+1:]
+			}
+		}
 		fmt.Fprintf(os.Stderr, "%s[DEBUG] %s:%d in %s: %s%s\n",
-			safeColor(colorYellow), errorInfo.File, errorInfo.Line, errorInfo.Function, err.Error(), safeColor(colorReset))
+			safeColor(colorYellow), file, line, funcName, err.Error(), safeColor(colorReset))
 	}
 
 	os.Exit(1)
