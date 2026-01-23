@@ -94,8 +94,11 @@ assistant.exe --help
 ## Configuration
 
 The assistant looks for configuration in this order:
-1. `./config.yaml` (current directory)
-2. `~/.assistant-config.yaml` (home directory)
+1. `<exe_dir>/config.yaml` (executable directory)
+2. `./config.yaml` (current directory)
+3. `~/.assistant-config.yaml` (home directory)
+
+The default config file is created in the executable's directory when running `--generate-config` or on first use.
 
 ### Example config.yaml
 

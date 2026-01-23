@@ -135,9 +135,13 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig saves the configuration to a file
 func SaveConfig(config *Config, configPath string) error {
-	// If no path specified, use current directory
+	// If no path specified, use executable directory
 	if configPath == "" {
-		configPath = "config.yaml"
+		if exeDir, err := getExecutableDir(); err == nil {
+			configPath = filepath.Join(exeDir, "config.yaml")
+		} else {
+			configPath = "config.yaml" // fallback to current directory
+		}
 	}
 
 	// Create directory if it doesn't exist
@@ -162,11 +166,29 @@ func SaveConfig(config *Config, configPath string) error {
 	return nil
 }
 
+// getExecutableDir returns the directory of the current executable
+func getExecutableDir() (string, error) {
+	execPath, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Dir(execPath), nil
+}
+
 // findConfigFile looks for config file in standard locations
-// Priority: 1. ./config.yaml (current directory)
-//  2. ~/.assistant-config.yaml (home directory)
+// Priority: 1. <exe_dir>/config.yaml (executable directory)
+//  2. ./config.yaml (current directory)
+//  3. ~/.assistant-config.yaml (home directory)
 func findConfigFile() string {
-	// Check current directory first
+	// Check executable directory first
+	if exeDir, err := getExecutableDir(); err == nil {
+		exeConfig := filepath.Join(exeDir, "config.yaml")
+		if _, err := os.Stat(exeConfig); err == nil {
+			return exeConfig
+		}
+	}
+
+	// Check current directory
 	if _, err := os.Stat("config.yaml"); err == nil {
 		return "config.yaml"
 	}
