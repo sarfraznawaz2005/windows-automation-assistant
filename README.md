@@ -8,6 +8,7 @@ A powerful AI agent built with [GitHub Copilot SDK](https://github.com/github/co
 - **Interactive Mode**: Multi-turn conversations with `--interactive` or `-i` flag
 - **Streaming Responses**: Real-time streaming with progress indicators
 - **Markdown Rendering**: Beautiful terminal output with custom lightweight renderer
+- **Built-in Agent Tools**: Shell execution, file read/write/edit, directory listing, and grep — similar to Claude Code CLI and Gemini CLI
 - **Custom Tools**: Extensible tool system with Go-based tool definitions
 - **JSON Output**: Structured output for programmatic use with `--json` flag
 - **YAML Configuration**: Customizable settings via `config.yaml`
@@ -45,6 +46,11 @@ assistant.exe "list files in current directory"
 
 # With specific model
 assistant.exe "show disk usage" gpt-4.1
+
+# The assistant can run commands, read/write files, and more
+assistant.exe "list all .go files in this project and count lines of code"
+assistant.exe "find TODO comments in the codebase"
+assistant.exe "create a hello.txt file with a greeting"
 
 # Weather tool example
 assistant.exe "what's the weather like in Tokyo"
@@ -114,7 +120,7 @@ output:
   streaming: true
 tools:
   enabled: true
-  enabled_tools: []  # Empty means all tools enabled, or specify: ["weather", "sum"]
+  enabled_tools: []  # Empty means all tools enabled, or specify: ["shell_exec", "file_read", "grep"]
 client:
   log_level: error
   auto_restart: true
@@ -167,10 +173,26 @@ Custom tools are Go files in the `usertools/` package. Each tool is self-contain
 
 ### Built-in Tools
 
+#### Core Agent Tools
+
+These tools give the assistant Claude Code / Gemini CLI-like capabilities to interact with the system autonomously:
+
+| Tool | Description |
+|------|-------------|
+| `shell_exec` | Execute shell commands via PowerShell (default), cmd, or bash. Configurable timeout and working directory. |
+| `file_read` | Read file contents with line numbers. Supports offset/limit for large files. |
+| `file_write` | Create or overwrite files. Auto-creates parent directories. Supports append mode. |
+| `file_edit` | Find-and-replace text in files. Rejects ambiguous matches unless `replace_all` is set. |
+| `list_files` | List directory contents or search by glob pattern (`*.go`, `**/*.txt`). Supports recursive listing. |
+| `grep` | Regex search across files/directories. Supports case-insensitive mode, file filters, and context lines. |
+
+#### Utility Tools
+
 | Tool | Description |
 |------|-------------|
 | `weather` | Get current weather for a city (uses wttr.in API) |
 | `sum` | Add two numbers together |
+| `open_notepad` | Open Windows Notepad |
 
 ### Creating a New Tool
 
